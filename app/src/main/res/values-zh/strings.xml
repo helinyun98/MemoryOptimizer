@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">内存优化</string>
+    <string name="process_count">运行中的进程数: %d</string>
+    <string name="memory_status">可用/总内存: %s</string>
+    <string name="action_cleanup">一键清理</string>
+</resources>
