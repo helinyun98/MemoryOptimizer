@@ -18,7 +18,6 @@ import com.ilis.memoryoptimizer.util.ProcessInfoProvider;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
-
 public class ProcessViewHolder extends RecyclerView.ViewHolder {
 
     @BindView(R.id.appIcon)
@@ -38,11 +37,10 @@ public class ProcessViewHolder extends RecyclerView.ViewHolder {
     }
 
     public static ProcessViewHolder create(ViewGroup parent) {
-        return new ProcessViewHolder(
-                LayoutInflater
-                        .from(parent.getContext())
-                        .inflate(R.layout.item_process, parent, false)
-        );
+        View itemView = LayoutInflater
+                .from(parent.getContext())
+                .inflate(R.layout.item_process, parent, false);
+        return new ProcessViewHolder(itemView);
     }
 
     public void update(Activity activity, final ProcessInfo processInfo) {
@@ -63,6 +61,12 @@ public class ProcessViewHolder extends RecyclerView.ViewHolder {
                 @Override
                 public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                     processInfo.setChecked(isChecked);
+                }
+            });
+            itemView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    checkbox.setChecked(!checkbox.isChecked());
                 }
             });
         }

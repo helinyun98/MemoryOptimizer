@@ -11,7 +11,6 @@ import com.ilis.memoryoptimizer.modle.ProcessInfo;
 import java.lang.ref.WeakReference;
 import java.util.List;
 
-
 public class ProcessListAdapter extends RecyclerView.Adapter<ProcessViewHolder> {
 
     private final WeakReference<Activity> activityWeakReference;
@@ -27,7 +26,7 @@ public class ProcessListAdapter extends RecyclerView.Adapter<ProcessViewHolder> 
         return processInfos.size();
     }
 
-    public Activity getActivity() {
+    private Activity getActivity() {
         return activityWeakReference.get();
     }
 
