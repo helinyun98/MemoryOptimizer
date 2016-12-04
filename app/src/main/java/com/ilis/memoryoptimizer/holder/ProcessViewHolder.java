@@ -54,6 +54,7 @@ public class ProcessViewHolder extends RecyclerView.ViewHolder {
         }
         if (processInfo.getPackName().equals(ProcessInfoProvider.getCurrentPackageName())) {
             checkbox.setEnabled(false);
+            itemView.setOnClickListener(null);
         } else {
             checkbox.setEnabled(true);
             checkbox.setChecked(processInfo.isChecked());
