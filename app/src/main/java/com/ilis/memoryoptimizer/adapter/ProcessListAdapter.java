@@ -5,6 +5,7 @@ import android.support.v7.widget.RecyclerView;
 import android.view.ViewGroup;
 
 import com.ilis.memoryoptimizer.activity.MainActivity;
+import com.ilis.memoryoptimizer.holder.ProcessViewCallback;
 import com.ilis.memoryoptimizer.holder.ProcessViewHolder;
 import com.ilis.memoryoptimizer.modle.ProcessInfo;
 
@@ -15,6 +16,7 @@ public class ProcessListAdapter extends RecyclerView.Adapter<ProcessViewHolder> 
 
     private final WeakReference<Activity> activityWeakReference;
     private List<ProcessInfo> processInfos;
+    private ProcessViewCallback callBack;
 
     public ProcessListAdapter(MainActivity mainActivity, List<ProcessInfo> processInfos) {
         activityWeakReference = new WeakReference<Activity>(mainActivity);
@@ -37,7 +39,11 @@ public class ProcessListAdapter extends RecyclerView.Adapter<ProcessViewHolder> 
 
     @Override
     public void onBindViewHolder(ProcessViewHolder holder, int position) {
-        holder.update(getActivity(), processInfos.get(position));
+        holder.update(getActivity(), processInfos.get(position), callBack);
+    }
+
+    public void setProcessViewCallBack(ProcessViewCallback callBack) {
+        this.callBack = callBack;
     }
 
 }

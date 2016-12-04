@@ -14,6 +14,7 @@ import android.widget.TextView;
 
 import com.ilis.memoryoptimizer.R;
 import com.ilis.memoryoptimizer.adapter.ProcessListAdapter;
+import com.ilis.memoryoptimizer.holder.ProcessViewCallback;
 import com.ilis.memoryoptimizer.modle.ProcessInfo;
 import com.ilis.memoryoptimizer.util.ProcessInfoDiff;
 import com.ilis.memoryoptimizer.util.ProcessInfoProvider;
@@ -43,6 +44,7 @@ public class MainActivity extends AppCompatActivity {
     private List<ProcessInfo> processInfo = new ArrayList<>();
     private ProcessListAdapter adapter;
     private Disposable disposable;
+    private LinearLayoutManager layoutManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,7 +75,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void initViews() {
         refreshLayout.setColorSchemeResources(R.color.colorAccent);
-        processList.setLayoutManager(new LinearLayoutManager(this));
+        layoutManager = new LinearLayoutManager(this);
+        processList.setLayoutManager(layoutManager);
         processList.addItemDecoration(new RecyclerView.ItemDecoration() {
             @Override
             public void getItemOffsets(Rect outRect, View view, RecyclerView parent, RecyclerView.State state) {
@@ -94,7 +97,12 @@ public class MainActivity extends AppCompatActivity {
                 ProcessInfoProvider.update();
             }
         });
-
+        adapter.setProcessViewCallBack(new ProcessViewCallback() {
+            @Override
+            public void onItemClick(View v, int position) {
+                unBindProcessList();
+            }
+        });
         bindProcessList();
     }
 
