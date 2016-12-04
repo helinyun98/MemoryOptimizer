@@ -6,6 +6,7 @@ import android.graphics.Rect;
 import android.os.Bundle;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.util.DiffUtil;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.View;
@@ -14,6 +15,7 @@ import android.widget.TextView;
 import com.ilis.memoryoptimizer.R;
 import com.ilis.memoryoptimizer.adapter.ProcessListAdapter;
 import com.ilis.memoryoptimizer.modle.ProcessInfo;
+import com.ilis.memoryoptimizer.util.ProcessInfoDiff;
 import com.ilis.memoryoptimizer.util.ProcessInfoProvider;
 
 import java.util.ArrayList;
@@ -45,12 +47,14 @@ public class MainActivity extends AppCompatActivity {
 
     private List<ProcessInfo> processInfo = new ArrayList<>();
     private ProcessListAdapter adapter;
-    private Observable<List<ProcessInfo>> publishSubject =
+
+    private Observable<List<ProcessInfo>> updateAction =
             PublishSubject.create(new ObservableOnSubscribe<List<ProcessInfo>>() {
                 @Override
                 public void subscribe(ObservableEmitter<List<ProcessInfo>> e) throws Exception {
                     ProcessInfoProvider.updateProcessInfo(getBaseContext());
                     e.onNext(ProcessInfoProvider.getProcessInfo());
+                    e.onComplete();
                 }
             });
 
@@ -115,16 +119,20 @@ public class MainActivity extends AppCompatActivity {
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.checkAll:
-                for (ProcessInfo info : processInfo) {
-                    info.setChecked(true);
+                int size = processInfo.size();
+                for (int i = 0; i < size; i++) {
+                    ProcessInfo info = processInfo.get(i);
+                    if (!info.isChecked()) {
+                        info.setChecked(true);
+                        adapter.notifyItemChanged(i);
+                    }
                 }
-                adapter.notifyDataSetChanged();
                 break;
             case R.id.checkOthers:
                 for (ProcessInfo info : processInfo) {
                     info.setChecked(!info.isChecked());
                 }
-                adapter.notifyDataSetChanged();
+                adapter.notifyItemRangeChanged(0, processInfo.size());
                 break;
             case R.id.killAll:
                 if (refreshLayout.isRefreshing()) {
@@ -146,14 +154,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadProcessInfo() {
-        publishSubject
-                .subscribeOn(Schedulers.computation())
+        updateAction
+                .subscribeOn(Schedulers.newThread())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new Consumer<List<ProcessInfo>>() {
                     @Override
                     public void accept(List<ProcessInfo> infos) throws Exception {
+                        DiffUtil.DiffResult diffResult =
+                                DiffUtil.calculateDiff(new ProcessInfoDiff(infos, processInfo));
                         processInfo.clear();
                         processInfo.addAll(infos);
+                        diffResult.dispatchUpdatesTo(adapter);
                         processCount.setText(
                                 String.format(
                                         getString(R.string.process_count),
@@ -164,7 +175,6 @@ public class MainActivity extends AppCompatActivity {
                                         getString(R.string.memory_status),
                                         ProcessInfoProvider.getSystemMemStatus()
                                 ));
-                        adapter.notifyDataSetChanged();
                         refreshLayout.setRefreshing(false);
                     }
                 });
