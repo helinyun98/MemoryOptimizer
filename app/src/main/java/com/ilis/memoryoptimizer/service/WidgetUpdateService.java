@@ -38,9 +38,8 @@ public class WidgetUpdateService extends Service {
     private static final String ACTION_CLEAR = "com.ilis.memoryoptimizer.CLEAR_ALL";
 
     private AppWidgetManager appWidgetManager;
-    private UpdateTimerTask timerTask;
     private Timer timer;
-    private ClearProcessReceiver receiver;
+    private CleanUpActionReceiver receiver;
     private ActivityManager activityManager;
     private ComponentName componentName;
     private RemoteViews views;
@@ -60,11 +59,10 @@ public class WidgetUpdateService extends Service {
         initWidgetView();
         bindRemoteView();
 
-        timerTask = new UpdateTimerTask();
         timer = new Timer();
-        timer.schedule(timerTask, 0, 10 * 1000);
+        timer.schedule(new UpdateTimerTask(), 0, 60 * 1000);
 
-        receiver = new ClearProcessReceiver();
+        receiver = new CleanUpActionReceiver();
         IntentFilter filter = new IntentFilter();
         filter.addAction(ACTION_CLEAR);
         registerReceiver(receiver, filter);
@@ -73,12 +71,8 @@ public class WidgetUpdateService extends Service {
     @Override
     public void onDestroy() {
         timer.cancel();
-        timerTask.cancel();
         unBindRemoteView();
         unregisterReceiver(receiver);
-        timer = null;
-        timerTask = null;
-        receiver = null;
         super.onDestroy();
     }
 
@@ -173,7 +167,7 @@ public class WidgetUpdateService extends Service {
         }
     }
 
-    private class ClearProcessReceiver extends BroadcastReceiver {
+    private class CleanUpActionReceiver extends BroadcastReceiver {
 
         @Override
         public void onReceive(Context context, Intent intent) {
