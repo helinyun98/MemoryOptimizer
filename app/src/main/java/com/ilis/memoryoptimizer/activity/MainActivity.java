@@ -10,6 +10,7 @@ import android.support.v7.util.DiffUtil;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.View;
+import android.view.ViewTreeObserver;
 import android.widget.TextView;
 
 import com.ilis.memoryoptimizer.R;
@@ -58,13 +59,15 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        refreshLayout.post(new Runnable() {
-            @Override
-            public void run() {
-                refreshLayout.setRefreshing(true);
-                ProcessInfoProvider.update();
-            }
-        });
+        refreshLayout.getViewTreeObserver()
+                .addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+                    @Override
+                    public void onGlobalLayout() {
+                        refreshLayout.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                        refreshLayout.setRefreshing(true);
+                        ProcessInfoProvider.update();
+                    }
+                });
     }
 
     @Override
