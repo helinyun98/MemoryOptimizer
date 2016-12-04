@@ -5,14 +5,24 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
+import android.support.v4.content.res.ResourcesCompat;
 import android.text.format.Formatter;
 
+import com.ilis.memoryoptimizer.MemOptApplication;
 import com.ilis.memoryoptimizer.modle.ProcessInfo;
 import com.jaredrummler.android.processes.AndroidProcesses;
 import com.jaredrummler.android.processes.models.AndroidAppProcess;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.observers.DefaultObserver;
+import io.reactivex.schedulers.Schedulers;
+import io.reactivex.subjects.PublishSubject;
 
 public class ProcessInfoProvider {
 
@@ -23,22 +33,27 @@ public class ProcessInfoProvider {
     private static String totalMem;
     private static int usedMemory;
     private static int totalMemory;
+    private static ActivityManager am;
+    private static PackageManager pm;
     private static String currentPackageName;
+    private static Drawable defIcon;
 
-    public static synchronized void updateProcessInfo(Context context) {
-        ProcessInfoProvider.userProcessInfo.clear();
-        ProcessInfoProvider.systemProcessInfo.clear();
-        ProcessInfoProvider.processInfo.clear();
-
-        ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
-        PackageManager pm = context.getPackageManager();
-
+    public static void init(Context context) {
+        am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        pm = context.getPackageManager();
         currentPackageName = context.getPackageName();
+        defIcon = ResourcesCompat.getDrawable(context.getResources(), android.R.mipmap.sym_def_app_icon, null);
+    }
+
+    private static synchronized void updateProcessInfo() {
+        userProcessInfo.clear();
+        systemProcessInfo.clear();
+        processInfo.clear();
 
         ActivityManager.MemoryInfo memoryInfo = new ActivityManager.MemoryInfo();
         am.getMemoryInfo(memoryInfo);
-        availMem = Formatter.formatFileSize(context, memoryInfo.availMem);
-        totalMem = Formatter.formatFileSize(context, memoryInfo.totalMem);
+        availMem = Formatter.formatFileSize(MemOptApplication.getApplication(), memoryInfo.availMem);
+        totalMem = Formatter.formatFileSize(MemOptApplication.getApplication(), memoryInfo.totalMem);
 
         totalMemory = (int) (memoryInfo.totalMem / (1024 * 1024));
         usedMemory = totalMemory - (int) (memoryInfo.availMem / (1024 * 1024));
@@ -71,21 +86,58 @@ public class ProcessInfoProvider {
 
             } catch (PackageManager.NameNotFoundException e) {
                 info.setAppName(packName);
-                Drawable icon = context.getResources().getDrawable(android.R.mipmap.sym_def_app_icon);
-                info.setIcon(icon);
+                info.setIcon(defIcon);
             }
 
             if (info.isUserProcess()) {
-                ProcessInfoProvider.userProcessInfo.add(info);
+                userProcessInfo.add(info);
             } else {
-                ProcessInfoProvider.systemProcessInfo.add(info);
+                systemProcessInfo.add(info);
             }
         }
 
-        ProcessInfoProvider.processInfo.addAll(userProcessInfo);
-        ProcessInfoProvider.processInfo.addAll(systemProcessInfo);
+        processInfo.addAll(userProcessInfo);
+        processInfo.addAll(systemProcessInfo);
     }
 
+    private static boolean isUpdating = false;
+    private static PublishSubject<List<ProcessInfo>> processInfoPublisher = PublishSubject.create();
+
+    public static void update() {
+        if (isUpdating) {
+            return;
+        }
+        isUpdating = true;
+        Observable
+                .create(new ObservableOnSubscribe<Void>() {
+                    @Override
+                    public void subscribe(ObservableEmitter<Void> e) throws Exception {
+                        updateProcessInfo();
+                        e.onComplete();
+                    }
+                })
+                .subscribeOn(Schedulers.newThread())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new DefaultObserver<Void>() {
+                    @Override
+                    public void onNext(Void value) {
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        processInfoPublisher.onNext(processInfo);
+                        isUpdating = false;
+                    }
+                });
+    }
+
+    public static PublishSubject<List<ProcessInfo>> getProvider() {
+        return processInfoPublisher;
+    }
 
     public static List<ProcessInfo> getProcessInfo() {
         return processInfo;

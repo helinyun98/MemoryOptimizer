@@ -4,6 +4,8 @@ import android.app.Application;
 import android.os.Handler;
 import android.os.Looper;
 
+import com.ilis.memoryoptimizer.util.ProcessInfoProvider;
+
 public class MemOptApplication extends Application {
 
     private static MemOptApplication mContext;
@@ -18,6 +20,8 @@ public class MemOptApplication extends Application {
         mMainHandler = new Handler(Looper.getMainLooper());
         mMainThread = Thread.currentThread();
         mMainThreadId = android.os.Process.myTid();
+
+        ProcessInfoProvider.init(this);
     }
 
     public static MemOptApplication getApplication() {

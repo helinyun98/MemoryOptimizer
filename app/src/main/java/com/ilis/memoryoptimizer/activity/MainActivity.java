@@ -24,13 +24,8 @@ import java.util.List;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
-import io.reactivex.Observable;
-import io.reactivex.ObservableEmitter;
-import io.reactivex.ObservableOnSubscribe;
-import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
-import io.reactivex.schedulers.Schedulers;
-import io.reactivex.subjects.PublishSubject;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -47,16 +42,7 @@ public class MainActivity extends AppCompatActivity {
 
     private List<ProcessInfo> processInfo = new ArrayList<>();
     private ProcessListAdapter adapter;
-
-    private Observable<List<ProcessInfo>> updateAction =
-            PublishSubject.create(new ObservableOnSubscribe<List<ProcessInfo>>() {
-                @Override
-                public void subscribe(ObservableEmitter<List<ProcessInfo>> e) throws Exception {
-                    ProcessInfoProvider.updateProcessInfo(getBaseContext());
-                    e.onNext(ProcessInfoProvider.getProcessInfo());
-                    e.onComplete();
-                }
-            });
+    private Disposable disposable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,9 +60,15 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 refreshLayout.setRefreshing(true);
-                loadProcessInfo();
+                ProcessInfoProvider.update();
             }
         });
+    }
+
+    @Override
+    protected void onDestroy() {
+        unBindProcessList();
+        super.onDestroy();
     }
 
     private void initViews() {
@@ -99,16 +91,11 @@ public class MainActivity extends AppCompatActivity {
         refreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
-                loadProcessInfo();
+                ProcessInfoProvider.update();
             }
         });
 
-        processList.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                super.onScrolled(recyclerView, dx, dy);
-            }
-        });
+        bindProcessList();
     }
 
     @OnClick({
@@ -119,6 +106,7 @@ public class MainActivity extends AppCompatActivity {
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.checkAll:
+                unBindProcessList();
                 int size = processInfo.size();
                 for (int i = 0; i < size; i++) {
                     ProcessInfo info = processInfo.get(i);
@@ -129,6 +117,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 break;
             case R.id.checkOthers:
+                unBindProcessList();
                 for (ProcessInfo info : processInfo) {
                     info.setChecked(!info.isChecked());
                 }
@@ -139,6 +128,7 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
                 refreshLayout.setRefreshing(true);
+                bindProcessList();
                 ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
                 for (ProcessInfo info : processInfo) {
                     if (info.getPackName().equals(getPackageName())) {
@@ -148,22 +138,20 @@ public class MainActivity extends AppCompatActivity {
                         am.killBackgroundProcesses(info.getPackName());
                     }
                 }
-                loadProcessInfo();
+                ProcessInfoProvider.update();
                 break;
         }
     }
 
-    private void loadProcessInfo() {
-        updateAction
-                .subscribeOn(Schedulers.newThread())
-                .observeOn(AndroidSchedulers.mainThread())
+    private void bindProcessList() {
+        disposable = ProcessInfoProvider.getProvider()
                 .subscribe(new Consumer<List<ProcessInfo>>() {
                     @Override
-                    public void accept(List<ProcessInfo> infos) throws Exception {
+                    public void accept(List<ProcessInfo> newInfo) throws Exception {
                         DiffUtil.DiffResult diffResult =
-                                DiffUtil.calculateDiff(new ProcessInfoDiff(infos, processInfo));
+                                DiffUtil.calculateDiff(new ProcessInfoDiff(newInfo, processInfo));
                         processInfo.clear();
-                        processInfo.addAll(infos);
+                        processInfo.addAll(newInfo);
                         diffResult.dispatchUpdatesTo(adapter);
                         processCount.setText(
                                 String.format(
@@ -179,4 +167,11 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
     }
+
+    private void unBindProcessList() {
+        if (disposable != null && !disposable.isDisposed()) {
+            disposable.dispose();
+        }
+    }
+
 }

@@ -28,9 +28,10 @@ import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
+import io.reactivex.observers.DefaultObserver;
 import io.reactivex.schedulers.Schedulers;
-import io.reactivex.subjects.PublishSubject;
 
 public class WidgetUpdateService extends Service {
 
@@ -43,21 +44,7 @@ public class WidgetUpdateService extends Service {
     private ActivityManager activityManager;
     private ComponentName componentName;
     private RemoteViews views;
-
-    private Observable<Boolean> cleanupAction =
-            PublishSubject.create(new ObservableOnSubscribe<Boolean>() {
-                @Override
-                public void subscribe(ObservableEmitter<Boolean> e) throws Exception {
-                    List<ProcessInfo> processInfoList = ProcessInfoProvider.getProcessInfo();
-                    for (ProcessInfo info : processInfoList) {
-                        if (info.getPackName().equals(getPackageName())) {
-                            continue;
-                        }
-                        activityManager.killBackgroundProcesses(info.getPackName());
-                    }
-                    e.onNext(true);
-                }
-            });
+    private Disposable disposable;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -71,6 +58,7 @@ public class WidgetUpdateService extends Service {
         componentName = new ComponentName(this, ProcessManagerWidget.class);
 
         initWidgetView();
+        bindRemoteView();
 
         timerTask = new UpdateTimerTask();
         timer = new Timer();
@@ -86,6 +74,7 @@ public class WidgetUpdateService extends Service {
     public void onDestroy() {
         timer.cancel();
         timerTask.cancel();
+        unBindRemoteView();
         unregisterReceiver(receiver);
         timer = null;
         timerTask = null;
@@ -111,42 +100,76 @@ public class WidgetUpdateService extends Service {
         views.setOnClickPendingIntent(R.id.widgetLayout, pendingIntentActivity);
     }
 
-    private void updateViewInfo() {
-        ProcessInfoProvider.updateProcessInfo(getBaseContext());
-        int processCount = ProcessInfoProvider.getProcessCount();
-        String memStatus = ProcessInfoProvider.getSystemMemStatus();
-        int totalMemory = ProcessInfoProvider.getTotalMemory();
-        int usedMemory = ProcessInfoProvider.getUsedMemory();
-        views.setTextViewText(R.id.processCount, String.format(getString(R.string.process_count), processCount));
-        views.setTextViewText(R.id.memoryStatus, String.format(getString(R.string.memory_status), memStatus));
-        views.setProgressBar(R.id.availPercent, totalMemory, usedMemory, false);
-        views.setViewVisibility(R.id.cleanup, View.VISIBLE);
-        views.setViewVisibility(R.id.clearingView, View.GONE);
-        try {
-            appWidgetManager.updateAppWidget(componentName, views);
-        } catch (RuntimeException e) {
-            initWidgetView();
-            System.gc();
+    private void bindRemoteView() {
+        disposable = ProcessInfoProvider.getProvider()
+                .subscribe(new Consumer<List<ProcessInfo>>() {
+                    @Override
+                    public void accept(List<ProcessInfo> processInfos) throws Exception {
+                        int processCount = ProcessInfoProvider.getProcessCount();
+                        String memStatus = ProcessInfoProvider.getSystemMemStatus();
+                        int totalMemory = ProcessInfoProvider.getTotalMemory();
+                        int usedMemory = ProcessInfoProvider.getUsedMemory();
+                        views.setTextViewText(R.id.processCount, String.format(getString(R.string.process_count), processCount));
+                        views.setTextViewText(R.id.memoryStatus, String.format(getString(R.string.memory_status), memStatus));
+                        views.setProgressBar(R.id.availPercent, totalMemory, usedMemory, false);
+                        views.setViewVisibility(R.id.cleanup, View.VISIBLE);
+                        views.setViewVisibility(R.id.clearingView, View.GONE);
+                        try {
+                            appWidgetManager.updateAppWidget(componentName, views);
+                        } catch (RuntimeException e) {
+                            initWidgetView();
+                            System.gc();
+                        }
+                    }
+                });
+    }
+
+    private void unBindRemoteView() {
+        if (disposable != null && !disposable.isDisposed()) {
+            disposable.dispose();
         }
     }
 
     private void cleanupProcesses() {
-        cleanupAction.subscribeOn(Schedulers.newThread())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new Consumer<Boolean>() {
+        Observable
+                .create(new ObservableOnSubscribe<Void>() {
                     @Override
-                    public void accept(Boolean aBoolean) throws Exception {
-                        timerTask.run();
+                    public void subscribe(ObservableEmitter<Void> e) throws Exception {
+                        List<ProcessInfo> processInfoList = ProcessInfoProvider.getProcessInfo();
+                        for (ProcessInfo info : processInfoList) {
+                            if (info.getPackName().equals(getPackageName())) {
+                                continue;
+                            }
+                            activityManager.killBackgroundProcesses(info.getPackName());
+                        }
+                        e.onComplete();
+                    }
+                })
+                .subscribeOn(Schedulers.newThread())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new DefaultObserver<Void>() {
+                    @Override
+                    public void onNext(Void value) {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        ProcessInfoProvider.update();
                         ToastUtil.showToast("进程清理已完成,系统已达到最佳状态");
                     }
                 });
     }
 
     private class UpdateTimerTask extends TimerTask {
-
         @Override
         public void run() {
-            updateViewInfo();
+            ProcessInfoProvider.update();
         }
     }
 
