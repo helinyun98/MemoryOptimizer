@@ -39,8 +39,6 @@ public class MainActivity extends AppCompatActivity {
     RecyclerView processList;
     @BindView(R.id.refreshLayout)
     SwipeRefreshLayout refreshLayout;
-    @BindView(R.id.listLabel)
-    TextView listLabel;
 
     private List<ProcessInfo> processInfo = new ArrayList<>();
     private ProcessListAdapter adapter;
@@ -155,28 +153,30 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void bindProcessList() {
-        disposable = ProcessInfoProvider.getProvider()
-                .subscribe(new Consumer<List<ProcessInfo>>() {
-                    @Override
-                    public void accept(List<ProcessInfo> newInfo) throws Exception {
-                        DiffUtil.DiffResult diffResult =
-                                DiffUtil.calculateDiff(new ProcessInfoDiff(newInfo, processInfo));
-                        processInfo.clear();
-                        processInfo.addAll(newInfo);
-                        diffResult.dispatchUpdatesTo(adapter);
-                        processCount.setText(
-                                String.format(
-                                        getString(R.string.process_count),
-                                        ProcessInfoProvider.getProcessCount()
-                                ));
-                        memoryStatus.setText(
-                                String.format(
-                                        getString(R.string.memory_status),
-                                        ProcessInfoProvider.getSystemMemStatus()
-                                ));
-                        refreshLayout.setRefreshing(false);
-                    }
-                });
+        if (disposable == null || disposable.isDisposed()) {
+            disposable = ProcessInfoProvider.getProvider()
+                    .subscribe(new Consumer<List<ProcessInfo>>() {
+                        @Override
+                        public void accept(List<ProcessInfo> newInfo) throws Exception {
+                            DiffUtil.DiffResult diffResult =
+                                    DiffUtil.calculateDiff(new ProcessInfoDiff(newInfo, processInfo));
+                            processInfo.clear();
+                            processInfo.addAll(newInfo);
+                            diffResult.dispatchUpdatesTo(adapter);
+                            processCount.setText(
+                                    String.format(
+                                            getString(R.string.process_count),
+                                            ProcessInfoProvider.getProcessCount()
+                                    ));
+                            memoryStatus.setText(
+                                    String.format(
+                                            getString(R.string.memory_status),
+                                            ProcessInfoProvider.getSystemMemStatus()
+                                    ));
+                            refreshLayout.setRefreshing(false);
+                        }
+                    });
+        }
     }
 
     private void unBindProcessList() {
