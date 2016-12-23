@@ -67,9 +67,6 @@ public class ProcessViewHolder extends RecyclerView.ViewHolder {
             itemView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    if (callBack != null) {
-                        callBack.onItemClick(v, getAdapterPosition());
-                    }
                     checkbox.setChecked(!checkbox.isChecked());
                 }
             });

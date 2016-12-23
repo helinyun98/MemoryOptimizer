@@ -35,8 +35,6 @@ import io.reactivex.schedulers.Schedulers;
 
 public class WidgetUpdateService extends Service {
 
-    private static final String ACTION_CLEAR = "com.ilis.memoryoptimizer.CLEAR_ALL";
-
     private AppWidgetManager appWidgetManager;
     private Timer timer;
     private CleanUpActionReceiver receiver;
@@ -64,7 +62,7 @@ public class WidgetUpdateService extends Service {
 
         receiver = new CleanUpActionReceiver();
         IntentFilter filter = new IntentFilter();
-        filter.addAction(ACTION_CLEAR);
+        filter.addAction(CleanUpActionReceiver.ACTION_CLEAR);
         registerReceiver(receiver, filter);
     }
 
@@ -83,7 +81,7 @@ public class WidgetUpdateService extends Service {
 
     private void initWidgetView() {
         views = new RemoteViews(getPackageName(), R.layout.widget_manager_view);
-        Intent intentBroadcast = new Intent(ACTION_CLEAR);
+        Intent intentBroadcast = new Intent(CleanUpActionReceiver.ACTION_CLEAR);
         PendingIntent pendingIntentBroadcast
                 = PendingIntent.getBroadcast(this, 0, intentBroadcast, PendingIntent.FLAG_UPDATE_CURRENT);
         views.setOnClickPendingIntent(R.id.cleanup, pendingIntentBroadcast);
@@ -95,27 +93,29 @@ public class WidgetUpdateService extends Service {
     }
 
     private void bindRemoteView() {
-        disposable = ProcessInfoProvider.getProvider()
-                .subscribe(new Consumer<List<ProcessInfo>>() {
-                    @Override
-                    public void accept(List<ProcessInfo> processInfos) throws Exception {
-                        int processCount = ProcessInfoProvider.getProcessCount();
-                        String memStatus = ProcessInfoProvider.getSystemMemStatus();
-                        int totalMemory = ProcessInfoProvider.getTotalMemory();
-                        int usedMemory = ProcessInfoProvider.getUsedMemory();
-                        views.setTextViewText(R.id.processCount, String.format(getString(R.string.process_count), processCount));
-                        views.setTextViewText(R.id.memoryStatus, String.format(getString(R.string.memory_status), memStatus));
-                        views.setProgressBar(R.id.availPercent, totalMemory, usedMemory, false);
-                        views.setViewVisibility(R.id.cleanup, View.VISIBLE);
-                        views.setViewVisibility(R.id.clearingView, View.GONE);
-                        try {
-                            appWidgetManager.updateAppWidget(componentName, views);
-                        } catch (RuntimeException e) {
-                            initWidgetView();
-                            System.gc();
+        if (disposable == null || disposable.isDisposed()) {
+            disposable = ProcessInfoProvider.getProvider()
+                    .subscribe(new Consumer<List<ProcessInfo>>() {
+                        @Override
+                        public void accept(List<ProcessInfo> newInfo) throws Exception {
+                            int processCount = ProcessInfoProvider.getProcessCount();
+                            String memStatus = ProcessInfoProvider.getSystemMemStatus();
+                            int totalMemory = ProcessInfoProvider.getTotalMemory();
+                            int usedMemory = ProcessInfoProvider.getUsedMemory();
+                            views.setTextViewText(R.id.processCount, String.format(getString(R.string.process_count), processCount));
+                            views.setTextViewText(R.id.memoryStatus, String.format(getString(R.string.memory_status), memStatus));
+                            views.setProgressBar(R.id.availPercent, totalMemory, usedMemory, false);
+                            views.setViewVisibility(R.id.cleanup, View.VISIBLE);
+                            views.setViewVisibility(R.id.clearingView, View.GONE);
+                            try {
+                                appWidgetManager.updateAppWidget(componentName, views);
+                            } catch (RuntimeException e) {
+                                initWidgetView();
+                                System.gc();
+                            }
                         }
-                    }
-                });
+                    });
+        }
     }
 
     private void unBindRemoteView() {
@@ -144,12 +144,10 @@ public class WidgetUpdateService extends Service {
                 .subscribe(new DefaultObserver<Void>() {
                     @Override
                     public void onNext(Void value) {
-
                     }
 
                     @Override
                     public void onError(Throwable e) {
-
                     }
 
                     @Override
@@ -169,6 +167,8 @@ public class WidgetUpdateService extends Service {
 
     private class CleanUpActionReceiver extends BroadcastReceiver {
 
+        public static final String ACTION_CLEAR = "com.ilis.memoryoptimizer.CLEAR_ALL";
+
         @Override
         public void onReceive(Context context, Intent intent) {
             views.setViewVisibility(R.id.cleanup, View.INVISIBLE);
@@ -178,5 +178,4 @@ public class WidgetUpdateService extends Service {
             cleanupProcesses();
         }
     }
-
 }
