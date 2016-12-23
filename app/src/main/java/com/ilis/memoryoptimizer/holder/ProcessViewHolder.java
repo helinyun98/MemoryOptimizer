@@ -43,7 +43,7 @@ public class ProcessViewHolder extends RecyclerView.ViewHolder {
         return new ProcessViewHolder(itemView);
     }
 
-    public void update(Activity activity, final ProcessInfo processInfo, final ProcessViewCallback callBack) {
+    public void update(Activity activity, final ProcessInfo processInfo) {
         appIcon.setImageDrawable(processInfo.getIcon());
         appName.setText(processInfo.getAppName());
         memSize.setText(Formatter.formatFileSize(activity, processInfo.getMemSize()));
@@ -54,6 +54,8 @@ public class ProcessViewHolder extends RecyclerView.ViewHolder {
         }
         if (processInfo.getPackName().equals(ProcessInfoProvider.getCurrentPackageName())) {
             checkbox.setEnabled(false);
+            checkbox.setChecked(false);
+            processInfo.setChecked(false);
             itemView.setOnClickListener(null);
         } else {
             checkbox.setEnabled(true);
@@ -67,7 +69,7 @@ public class ProcessViewHolder extends RecyclerView.ViewHolder {
             itemView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    checkbox.setChecked(!checkbox.isChecked());
+                    checkbox.toggle();
                 }
             });
         }
