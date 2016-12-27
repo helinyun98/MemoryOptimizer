@@ -52,6 +52,7 @@ public class ProcessViewHolder extends RecyclerView.ViewHolder {
         } else {
             appLabel.setImageResource(R.drawable.ic_system_app);
         }
+        checkbox.setOnCheckedChangeListener(null);
         if (processInfo.getPackName().equals(ProcessInfoProvider.getCurrentPackageName())) {
             checkbox.setEnabled(false);
             checkbox.setChecked(false);
