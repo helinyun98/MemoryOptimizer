@@ -100,10 +100,10 @@ public class ProcessInfoProvider {
         processInfo.addAll(systemProcessInfo);
     }
 
-    private static boolean isUpdating = false;
+    private static volatile boolean isUpdating = false;
     private static PublishSubject<List<ProcessInfo>> processInfoPublisher = PublishSubject.create();
 
-    public static void update() {
+    public synchronized static void update() {
         if (isUpdating) {
             return;
         }
