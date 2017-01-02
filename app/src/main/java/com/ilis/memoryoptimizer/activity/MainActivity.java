@@ -169,6 +169,7 @@ public class MainActivity extends AppCompatActivity {
                         public DiffUtil.DiffResult apply(List<ProcessInfo> newInfo) throws Exception {
                             DiffUtil.DiffResult diffResult =
                                     DiffUtil.calculateDiff(new ProcessInfoDiff(newInfo, processInfo));
+                            processList.setLayoutFrozen(true);
                             processInfo.clear();
                             processInfo.addAll(newInfo);
                             return diffResult;
@@ -179,6 +180,7 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void accept(DiffUtil.DiffResult diffResult) throws Exception {
                             refreshLayout.setRefreshing(false);
+                            processList.setLayoutFrozen(false);
                             diffResult.dispatchUpdatesTo(adapter);
                             processCount.setText(
                                     String.format(
