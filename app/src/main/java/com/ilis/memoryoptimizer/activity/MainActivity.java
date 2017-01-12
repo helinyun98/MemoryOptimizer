@@ -5,7 +5,6 @@ import android.content.Context;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.support.v4.widget.SwipeRefreshLayout;
-import android.support.v7.app.AppCompatActivity;
 import android.support.v7.util.DiffUtil;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -18,6 +17,8 @@ import com.ilis.memoryoptimizer.adapter.ProcessListAdapter;
 import com.ilis.memoryoptimizer.modle.ProcessInfo;
 import com.ilis.memoryoptimizer.util.ProcessInfoDiff;
 import com.ilis.memoryoptimizer.util.ProcessInfoProvider;
+import com.trello.rxlifecycle2.android.ActivityEvent;
+import com.trello.rxlifecycle2.components.support.RxAppCompatActivity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,12 +27,11 @@ import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 import io.reactivex.android.schedulers.AndroidSchedulers;
-import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends RxAppCompatActivity {
 
     @BindView(R.id.processCount)
     TextView processCount;
@@ -44,7 +44,6 @@ public class MainActivity extends AppCompatActivity {
 
     private List<ProcessInfo> processInfo = new ArrayList<>();
     private ProcessListAdapter adapter;
-    private Disposable disposable;
     private LinearLayoutManager layoutManager;
 
     @Override
@@ -59,21 +58,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        refreshLayout.getViewTreeObserver()
-                .addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
-                    @Override
-                    public void onGlobalLayout() {
-                        refreshLayout.getViewTreeObserver().removeOnGlobalLayoutListener(this);
-                        refreshLayout.setRefreshing(true);
-                        ProcessInfoProvider.update();
-                    }
-                });
-    }
-
-    @Override
-    protected void onDestroy() {
-        unBindProcessList();
-        super.onDestroy();
+        bindProcessList();
     }
 
     private void initViews() {
@@ -92,7 +77,6 @@ public class MainActivity extends AppCompatActivity {
         processList.setAdapter(adapter);
     }
 
-
     private void setListener() {
         refreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
@@ -100,7 +84,15 @@ public class MainActivity extends AppCompatActivity {
                 ProcessInfoProvider.update();
             }
         });
-        bindProcessList();
+        refreshLayout.getViewTreeObserver()
+                .addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+                    @Override
+                    public void onGlobalLayout() {
+                        refreshLayout.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                        refreshLayout.setRefreshing(true);
+                        ProcessInfoProvider.update();
+                    }
+                });
     }
 
     @OnClick({
@@ -146,61 +138,53 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void bindProcessList() {
-        if (disposable == null || disposable.isDisposed()) {
-            disposable = ProcessInfoProvider.getProvider()
-                    .observeOn(Schedulers.computation())
-                    .doOnNext(new Consumer<List<ProcessInfo>>() {
-                        @Override
-                        public void accept(List<ProcessInfo> newInfo) throws Exception {
-                            for (ProcessInfo info : processInfo) {
-                                if (info.isChecked()) {
-                                    for (ProcessInfo newOne : newInfo) {
-                                        if (info.getPackName().equals(newOne.getPackName())) {
-                                            newOne.setChecked(info.isChecked());
-                                            break;
-                                        }
+        ProcessInfoProvider.getProvider()
+                .compose(this.<List<ProcessInfo>>bindUntilEvent(ActivityEvent.PAUSE))
+                .observeOn(Schedulers.computation())
+                .doOnNext(new Consumer<List<ProcessInfo>>() {
+                    @Override
+                    public void accept(List<ProcessInfo> newInfo) throws Exception {
+                        for (ProcessInfo info : processInfo) {
+                            if (info.isChecked()) {
+                                for (ProcessInfo newOne : newInfo) {
+                                    if (info.getPackName().equals(newOne.getPackName())) {
+                                        newOne.setChecked(info.isChecked());
+                                        break;
                                     }
                                 }
                             }
                         }
-                    })
-                    .map(new Function<List<ProcessInfo>, DiffUtil.DiffResult>() {
-                        @Override
-                        public DiffUtil.DiffResult apply(List<ProcessInfo> newInfo) throws Exception {
-                            DiffUtil.DiffResult diffResult =
-                                    DiffUtil.calculateDiff(new ProcessInfoDiff(newInfo, processInfo));
-                            processList.setLayoutFrozen(true);
-                            processInfo.clear();
-                            processInfo.addAll(newInfo);
-                            return diffResult;
-                        }
-                    })
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(new Consumer<DiffUtil.DiffResult>() {
-                        @Override
-                        public void accept(DiffUtil.DiffResult diffResult) throws Exception {
-                            refreshLayout.setRefreshing(false);
-                            processList.setLayoutFrozen(false);
-                            diffResult.dispatchUpdatesTo(adapter);
-                            processCount.setText(
-                                    String.format(
-                                            getString(R.string.process_count),
-                                            ProcessInfoProvider.getProcessCount()
-                                    ));
-                            memoryStatus.setText(
-                                    String.format(
-                                            getString(R.string.memory_status),
-                                            ProcessInfoProvider.getSystemMemStatus()
-                                    ));
-                        }
-                    });
-        }
+                    }
+                })
+                .map(new Function<List<ProcessInfo>, DiffUtil.DiffResult>() {
+                    @Override
+                    public DiffUtil.DiffResult apply(List<ProcessInfo> newInfo) throws Exception {
+                        DiffUtil.DiffResult diffResult =
+                                DiffUtil.calculateDiff(new ProcessInfoDiff(newInfo, processInfo));
+                        processList.setLayoutFrozen(true);
+                        processInfo.clear();
+                        processInfo.addAll(newInfo);
+                        return diffResult;
+                    }
+                })
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Consumer<DiffUtil.DiffResult>() {
+                    @Override
+                    public void accept(DiffUtil.DiffResult diffResult) throws Exception {
+                        refreshLayout.setRefreshing(false);
+                        processList.setLayoutFrozen(false);
+                        diffResult.dispatchUpdatesTo(adapter);
+                        processCount.setText(
+                                String.format(
+                                        getString(R.string.process_count),
+                                        ProcessInfoProvider.getProcessCount()
+                                ));
+                        memoryStatus.setText(
+                                String.format(
+                                        getString(R.string.memory_status),
+                                        ProcessInfoProvider.getSystemMemStatus()
+                                ));
+                    }
+                });
     }
-
-    private void unBindProcessList() {
-        if (disposable != null && !disposable.isDisposed()) {
-            disposable.dispose();
-        }
-    }
-
 }
