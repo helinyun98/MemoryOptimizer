@@ -109,18 +109,18 @@ public class ProcessInfoProvider {
         }
         isUpdating = true;
         Observable
-                .create(new ObservableOnSubscribe<Void>() {
+                .create(new ObservableOnSubscribe<Long>() {
                     @Override
-                    public void subscribe(ObservableEmitter<Void> e) throws Exception {
+                    public void subscribe(ObservableEmitter<Long> e) throws Exception {
                         updateProcessInfo();
                         e.onComplete();
                     }
                 })
                 .subscribeOn(Schedulers.newThread())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new DefaultObserver<Void>() {
+                .subscribe(new DefaultObserver<Long>() {
                     @Override
-                    public void onNext(Void value) {
+                    public void onNext(Long ignore) {
                     }
 
                     @Override
