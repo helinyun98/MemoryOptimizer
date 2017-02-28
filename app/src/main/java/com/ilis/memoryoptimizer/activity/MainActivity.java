@@ -64,6 +64,7 @@ public class MainActivity extends RxAppCompatActivity {
     private void initViews() {
         refreshLayout.setColorSchemeResources(R.color.colorAccent);
         layoutManager = new LinearLayoutManager(this);
+        processList.getItemAnimator().setChangeDuration(0);
         processList.setLayoutManager(layoutManager);
         processList.addItemDecoration(new RecyclerView.ItemDecoration() {
             @Override
