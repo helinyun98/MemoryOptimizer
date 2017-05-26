@@ -2,7 +2,6 @@ package com.ilis.memoryoptimizer.activity;
 
 import android.app.ActivityManager;
 import android.content.Context;
-import android.graphics.Rect;
 import android.os.Bundle;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.util.DiffUtil;
@@ -14,9 +13,10 @@ import android.widget.TextView;
 
 import com.ilis.memoryoptimizer.R;
 import com.ilis.memoryoptimizer.adapter.ProcessListAdapter;
-import com.ilis.memoryoptimizer.modle.ProcessInfo;
+import com.ilis.memoryoptimizer.data.ProcessInfo;
+import com.ilis.memoryoptimizer.data.ProcessInfoRepository;
+import com.ilis.memoryoptimizer.util.OffsetItemDecoration;
 import com.ilis.memoryoptimizer.util.ProcessInfoDiff;
-import com.ilis.memoryoptimizer.util.ProcessInfoProvider;
 import com.trello.rxlifecycle2.android.ActivityEvent;
 import com.trello.rxlifecycle2.components.support.RxAppCompatActivity;
 
@@ -27,8 +27,6 @@ import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 import io.reactivex.android.schedulers.AndroidSchedulers;
-import io.reactivex.functions.Consumer;
-import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 
 public class MainActivity extends RxAppCompatActivity {
@@ -66,32 +64,21 @@ public class MainActivity extends RxAppCompatActivity {
         layoutManager = new LinearLayoutManager(this);
         processList.getItemAnimator().setChangeDuration(0);
         processList.setLayoutManager(layoutManager);
-        processList.addItemDecoration(new RecyclerView.ItemDecoration() {
-            @Override
-            public void getItemOffsets(Rect outRect, View view, RecyclerView parent, RecyclerView.State state) {
-                outRect.left = (int) getResources().getDimension(R.dimen.item_offset);
-                outRect.right = (int) getResources().getDimension(R.dimen.item_offset);
-                outRect.bottom = (int) getResources().getDimension(R.dimen.item_offset);
-            }
-        });
+        int offset = (int) getResources().getDimension(R.dimen.item_offset);
+        processList.addItemDecoration(new OffsetItemDecoration(offset, layoutManager));
         adapter = new ProcessListAdapter(this, processInfo);
         processList.setAdapter(adapter);
     }
 
     private void setListener() {
-        refreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
-            @Override
-            public void onRefresh() {
-                ProcessInfoProvider.update();
-            }
-        });
+        refreshLayout.setOnRefreshListener(() -> ProcessInfoRepository.getInstance().refresh());
         refreshLayout.getViewTreeObserver()
                 .addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
                     @Override
                     public void onGlobalLayout() {
                         refreshLayout.getViewTreeObserver().removeOnGlobalLayoutListener(this);
                         refreshLayout.setRefreshing(true);
-                        ProcessInfoProvider.update();
+                        ProcessInfoRepository.getInstance().refresh();
                     }
                 });
     }
@@ -126,11 +113,11 @@ public class MainActivity extends RxAppCompatActivity {
                 refreshLayout.setRefreshing(true);
                 ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
                 for (ProcessInfo info : processInfo) {
-                    if (info.getPackName().equals(getPackageName())) {
+                    if (info.getPackageName().equals(getPackageName())) {
                         continue;
                     }
                     if (info.isChecked()) {
-                        am.killBackgroundProcesses(info.getPackName());
+                        am.killBackgroundProcesses(info.getPackageName());
                     }
                 }
                 ProcessInfoProvider.update();
@@ -139,12 +126,18 @@ public class MainActivity extends RxAppCompatActivity {
     }
 
     private void bindProcessList() {
-        ProcessInfoProvider.getProvider()
-                .compose(this.<List<ProcessInfo>>bindUntilEvent(ActivityEvent.PAUSE))
+        ProcessInfoRepository.getInstance()
+                .refreshEnd()
+                .compose(this.bindUntilEvent(ActivityEvent.PAUSE))
+                .doOnNext(ignore -> updateList());
+    }
+
+    private void updateList() {
+        ProcessInfoRepository.getInstance()
+                .getAllProcess(false)
                 .observeOn(Schedulers.computation())
-                .doOnNext(new Consumer<List<ProcessInfo>>() {
-                    @Override
-                    public void accept(List<ProcessInfo> newInfo) throws Exception {
+                // 对比并将所有已选中的项设为选中
+                .doOnNext( newInfo -> {
                         for (ProcessInfo info : processInfo) {
                             if (info.isChecked()) {
                                 for (ProcessInfo newOne : newInfo) {
@@ -157,6 +150,7 @@ public class MainActivity extends RxAppCompatActivity {
                         }
                     }
                 })
+                // 计算Diff
                 .map(new Function<List<ProcessInfo>, DiffUtil.DiffResult>() {
                     @Override
                     public DiffUtil.DiffResult apply(List<ProcessInfo> newInfo) throws Exception {
@@ -168,6 +162,7 @@ public class MainActivity extends RxAppCompatActivity {
                         return diffResult;
                     }
                 })
+                // 刷新列表
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new Consumer<DiffUtil.DiffResult>() {
                     @Override
