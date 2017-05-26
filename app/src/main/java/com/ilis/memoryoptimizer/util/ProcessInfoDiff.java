@@ -2,7 +2,7 @@ package com.ilis.memoryoptimizer.util;
 
 import android.support.v7.util.DiffUtil;
 
-import com.ilis.memoryoptimizer.modle.ProcessInfo;
+import com.ilis.memoryoptimizer.data.ProcessInfo;
 
 import java.util.List;
 
@@ -31,7 +31,7 @@ public class ProcessInfoDiff extends DiffUtil.Callback {
     public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
         ProcessInfo oldItem = oldData.get(oldItemPosition);
         ProcessInfo newItem = newData.get(newItemPosition);
-        return oldItem.getPackName().equals(newItem.getPackName());
+        return oldItem.getPackageName().equals(newItem.getPackageName());
     }
 
     @Override
