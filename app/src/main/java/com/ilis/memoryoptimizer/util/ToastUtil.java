@@ -28,17 +28,14 @@ public class ToastUtil {
             toast.show();
         } else {
             MemOptApplication
-                    .getMainThreadHandler()
-                    .post(new Runnable() {
-                        @Override
-                        public void run() {
-                            toast = Toast.makeText(
-                                    MemOptApplication.getApplication(),
-                                    text,
-                                    isLongToast ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT
-                            );
-                            toast.show();
-                        }
+                    .getMainHandler()
+                    .post(() -> {
+                        toast = Toast.makeText(
+                                MemOptApplication.getApplication(),
+                                text,
+                                isLongToast ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT
+                        );
+                        toast.show();
                     });
         }
     }
