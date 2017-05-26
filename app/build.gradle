@@ -1,18 +1,28 @@
 apply plugin: 'com.android.application'
-apply plugin: 'android-apt'
 
 android {
-    compileSdkVersion 25
-    buildToolsVersion '25.0.2'
+    compileSdkVersion rootProject.ext.compileSdkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+
     defaultConfig {
         applicationId "com.ilis.memoryoptimizer"
-        minSdkVersion 16
-        targetSdkVersion 25
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
-        proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+        testInstrumentationRunner 'android.support.test.runner.AndroidJUnitRunner'
+
+        jackOptions {
+            enabled true
+        }
     }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
     signingConfigs {
         release {
             keyAlias 'androiddebugkey'
@@ -21,34 +31,57 @@ android {
             storePassword 'android'
         }
     }
+
     buildTypes {
         release {
             minifyEnabled true
+            useProguard true
             signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
         debug {
             minifyEnabled false
+            useProguard false
             signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 }
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    compile 'com.jakewharton:butterknife:8.4.0'
-    apt 'com.jakewharton:butterknife-compiler:8.4.0'
-    compile 'com.android.support:cardview-v7:25.1.0'
-    compile 'com.android.support:recyclerview-v7:25.1.0'
-    compile 'com.android.support:appcompat-v7:25.1.0'
-    compile 'io.reactivex.rxjava2:rxjava:2.0.4'
-    compile 'io.reactivex.rxjava2:rxandroid:2.0.1'
-    compile 'com.trello.rxlifecycle2:rxlifecycle:2.0.1'
-    compile 'com.trello.rxlifecycle2:rxlifecycle-android:2.0.1'
-    compile 'com.trello.rxlifecycle2:rxlifecycle-components:2.0.1'
-    compile 'com.jaredrummler:android-processes:1.0.9'
-    androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
-        exclude group: 'com.android.support', module: 'support-annotations'
-        exclude group: 'com.google.code.findbugs'
-    })
-    testCompile 'junit:junit:4.12'
+    // SupportLibrary
+    compile "com.android.support:design:$rootProject.supportLibraryVersion"
+    compile "com.android.support:support-v4:$rootProject.supportLibraryVersion"
+    compile "com.android.support:recyclerview-v7:$rootProject.supportLibraryVersion"
+    compile "com.android.support:appcompat-v7:$rootProject.supportLibraryVersion"
+    compile "com.android.support:cardview-v7:$rootProject.supportLibraryVersion"
+    // ButterKnife
+    compile "com.jakewharton:butterknife:$rootProject.butterknifeVersion"
+    annotationProcessor "com.jakewharton:butterknife-compiler:$rootProject.butterknifeVersion"
+    // RxJava
+    compile "io.reactivex.rxjava2:rxjava:$rootProject.rxjavaVersion"
+    compile "io.reactivex.rxjava2:rxandroid:$rootProject.rxandroidVersion"
+    // RxLifecycle
+    compile "com.trello.rxlifecycle2:rxlifecycle:$rootProject.rxlifecycleVersion"
+    compile "com.trello.rxlifecycle2:rxlifecycle-android:$rootProject.rxlifecycleVersion"
+    compile "com.trello.rxlifecycle2:rxlifecycle-components:$rootProject.rxlifecycleVersion"
+    // AndroidProcesses
+    compile "com.jaredrummler:android-processes:$rootProject.androidProcessesVersion"
+
+    // Espresso UI Testing
+    androidTestCompile "com.android.support.test.espresso:espresso-core:$rootProject.espressoVersion"
+    androidTestCompile "com.android.support.test.espresso:espresso-contrib:$rootProject.espressoVersion"
+    androidTestCompile "com.android.support.test.espresso:espresso-intents:$rootProject.espressoVersion"
+
+    // Dependencies for local unit tests
+    testCompile "junit:junit:$rootProject.ext.junitVersion"
+
+    // Resolve conflicts between main and test APK:
+    androidTestCompile "com.android.support:design:$rootProject.supportLibraryVersion"
+    androidTestCompile "com.android.support:support-v4:$rootProject.supportLibraryVersion"
+    androidTestCompile "com.android.support:support-annotations:$rootProject.supportLibraryVersion"
+    androidTestCompile "com.android.support:recyclerview-v7:$rootProject.supportLibraryVersion"
+    androidTestCompile "com.android.support:appcompat-v7:$rootProject.supportLibraryVersion"
+    androidTestCompile "com.google.code.findbugs:jsr305:3.0.1"
 }
