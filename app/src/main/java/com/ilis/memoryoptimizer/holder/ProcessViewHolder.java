@@ -2,18 +2,19 @@ package com.ilis.memoryoptimizer.holder;
 
 import android.app.Activity;
 import android.support.v7.widget.RecyclerView;
+import android.text.TextUtils;
 import android.text.format.Formatter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
-import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.ilis.memoryoptimizer.MemOptApplication;
 import com.ilis.memoryoptimizer.R;
-import com.ilis.memoryoptimizer.modle.ProcessInfo;
-import com.ilis.memoryoptimizer.util.ProcessInfoProvider;
+import com.ilis.memoryoptimizer.data.ProcessInfo;
+import com.ilis.memoryoptimizer.util.PackageIconLoader;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -43,36 +44,22 @@ public class ProcessViewHolder extends RecyclerView.ViewHolder {
         return new ProcessViewHolder(itemView);
     }
 
-    public void update(Activity activity, final ProcessInfo processInfo) {
-        appIcon.setImageDrawable(processInfo.getIcon());
+    public void update(Activity context, final ProcessInfo processInfo) {
+        PackageIconLoader.loadAppIcon(context, appIcon, processInfo.getPackageName());
         appName.setText(processInfo.getAppName());
-        memSize.setText(Formatter.formatFileSize(activity, processInfo.getMemSize()));
-        if (processInfo.isUserProcess()) {
-            appLabel.setImageResource(R.drawable.ic_user_app);
-        } else {
-            appLabel.setImageResource(R.drawable.ic_system_app);
-        }
+        memSize.setText(Formatter.formatFileSize(context, processInfo.getMemSize()));
+        appLabel.setImageResource(processInfo.isUserProcess() ? R.drawable.ic_user_app : R.drawable.ic_system_app);
         checkbox.setOnCheckedChangeListener(null);
-        if (processInfo.getPackName().equals(ProcessInfoProvider.getCurrentPackageName())) {
+        if (TextUtils.equals(MemOptApplication.getCurrentPackageName(), processInfo.getPackageName())) {
             checkbox.setEnabled(false);
             checkbox.setChecked(false);
-            processInfo.setChecked(false);
+            processInfo.setPrepareToClean(false);
             itemView.setOnClickListener(null);
         } else {
             checkbox.setEnabled(true);
-            checkbox.setChecked(processInfo.isChecked());
-            checkbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                    processInfo.setChecked(isChecked);
-                }
-            });
-            itemView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    checkbox.toggle();
-                }
-            });
+            checkbox.setChecked(processInfo.isPrepareToClean());
+            checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> processInfo.setPrepareToClean(isChecked));
+            itemView.setOnClickListener(v -> checkbox.toggle());
         }
     }
 }
