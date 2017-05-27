@@ -22,7 +22,6 @@ public class MemOptApplication extends Application {
         mMainThreadId = android.os.Process.myTid();
 
         activityManager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-        ProcessInfoProvider.init(this);
     }
 
     public static MemOptApplication getApplication() {

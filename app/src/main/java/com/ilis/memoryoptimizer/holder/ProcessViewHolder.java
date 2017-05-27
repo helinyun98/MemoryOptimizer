@@ -58,8 +58,8 @@ public class ProcessViewHolder extends RecyclerView.ViewHolder {
         } else {
             checkbox.setEnabled(true);
             checkbox.setChecked(processInfo.isPrepareToClean());
-            checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> processInfo.setPrepareToClean(isChecked));
             itemView.setOnClickListener(v -> checkbox.toggle());
+            checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> processInfo.setPrepareToClean(isChecked));
         }
     }
 }

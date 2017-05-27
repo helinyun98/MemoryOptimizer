@@ -12,10 +12,12 @@ import android.os.IBinder;
 import android.view.View;
 import android.widget.RemoteViews;
 
+import com.ilis.memoryoptimizer.MemOptApplication;
 import com.ilis.memoryoptimizer.R;
 import com.ilis.memoryoptimizer.activity.MainActivity;
 import com.ilis.memoryoptimizer.data.ProcessInfoRepository;
 import com.ilis.memoryoptimizer.util.ProcessCleanUpHelper;
+import com.ilis.memoryoptimizer.util.ToastUtil;
 import com.ilis.memoryoptimizer.widget.ProcessManagerWidget;
 
 import java.util.concurrent.TimeUnit;
@@ -25,7 +27,6 @@ import io.reactivex.disposables.Disposable;
 
 import static com.ilis.memoryoptimizer.R.id.cleanup;
 import static com.ilis.memoryoptimizer.R.id.processCount;
-import static com.ilis.memoryoptimizer.widget.ProcessManagerWidget.ACTION_CLEAR;
 
 public class WidgetUpdateService extends Service {
 
@@ -33,8 +34,9 @@ public class WidgetUpdateService extends Service {
     private CleanUpActionReceiver receiver;
     private ComponentName componentName;
     private RemoteViews views;
-    private Disposable viewDispose;
     private Disposable updateDispose;
+
+    public static final String ACTION_CLEAR = MemOptApplication.getCurrentPackageName() + ".CLEAR_ALL";
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -46,22 +48,22 @@ public class WidgetUpdateService extends Service {
         appWidgetManager = AppWidgetManager.getInstance(this);
         componentName = new ComponentName(this, ProcessManagerWidget.class);
         initWidgetView();
+        setupWidget();
         startUpdateAction();
-        bindRemoteView();
         initReceiver();
     }
 
     @Override
     public void onDestroy() {
         endUpdateAction();
-        unBindRemoteView();
         unregisterReceiver(receiver);
         super.onDestroy();
     }
 
     @Override
     public void onLowMemory() {
-        ProcessCleanUpHelper.cleanupAllProcess();
+        Intent actionCleanup = new Intent(ACTION_CLEAR);
+        sendBroadcast(actionCleanup);
     }
 
     private void initReceiver() {
@@ -71,24 +73,12 @@ public class WidgetUpdateService extends Service {
         registerReceiver(receiver, filter);
     }
 
-    private void bindRemoteView() {
-        if (viewDispose == null || viewDispose.isDisposed()) {
-            viewDispose = ProcessInfoRepository.getInstance()
-                    .refresh()
-                    .refreshEnd()
-                    .subscribe(endTime -> setupWidget());
-        }
-    }
-
-    private void unBindRemoteView() {
-        if (viewDispose != null && !viewDispose.isDisposed()) {
-            viewDispose.dispose();
-        }
-    }
-
     private void startUpdateAction() {
-        updateDispose = Observable.interval(1, TimeUnit.MINUTES)
-                .subscribe(aLong -> ProcessInfoRepository.getInstance().refresh());
+        updateDispose = Observable.interval(3, TimeUnit.MINUTES)
+                .subscribe(aLong -> {
+                    ProcessInfoRepository.getInstance().refresh();
+                    setupWidget();
+                });
     }
 
     private void endUpdateAction() {
@@ -99,15 +89,20 @@ public class WidgetUpdateService extends Service {
 
     private void initWidgetView() {
         views = new RemoteViews(getPackageName(), R.layout.widget_manager_view);
-        Intent intentBroadcast = new Intent(ACTION_CLEAR);
-        PendingIntent pendingIntentBroadcast
-                = PendingIntent.getBroadcast(this, 0, intentBroadcast, PendingIntent.FLAG_UPDATE_CURRENT);
-        views.setOnClickPendingIntent(cleanup, pendingIntentBroadcast);
-        Intent intentActivity = new Intent(this, MainActivity.class);
-        intentActivity.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        PendingIntent pendingIntentActivity
-                = PendingIntent.getActivity(this, 0, intentActivity, PendingIntent.FLAG_UPDATE_CURRENT);
-        views.setOnClickPendingIntent(R.id.widgetLayout, pendingIntentActivity);
+
+        PendingIntent actionCleanup = PendingIntent
+                .getBroadcast(this, 0,
+                        new Intent(ACTION_CLEAR),
+                        PendingIntent.FLAG_UPDATE_CURRENT);
+        views.setOnClickPendingIntent(cleanup, actionCleanup);
+
+        Intent activityIntent = new Intent(this, MainActivity.class);
+        activityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        PendingIntent openActivity = PendingIntent
+                .getActivity(this, 0,
+                        activityIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT);
+        views.setOnClickPendingIntent(R.id.widgetLayout, openActivity);
     }
 
     private void setupWidget() {
@@ -116,15 +111,16 @@ public class WidgetUpdateService extends Service {
                 ProcessInfoRepository.getInstance().getSystemMemStatus(),
                 ProcessInfoRepository.getInstance().getTotalMemory(),
                 ProcessInfoRepository.getInstance().getUsedMemory(),
-                (processCount1, memStatus, totalMemory, usedMemory) -> {
-                    views.setTextViewText(processCount, String.format(getString(R.string.process_count), processCount1));
+                (processCount, memStatus, totalMemory, usedMemory) -> {
+                    views.setTextViewText(R.id.processCount, String.format(getString(R.string.process_count), processCount));
                     views.setTextViewText(R.id.memoryStatus, String.format(getString(R.string.memory_status), memStatus));
                     views.setProgressBar(R.id.availPercent, totalMemory, usedMemory, false);
                     views.setViewVisibility(cleanup, View.VISIBLE);
                     views.setViewVisibility(R.id.clearingView, View.GONE);
                     updateWidget(views);
                     return System.currentTimeMillis();
-                });
+                })
+                .subscribe();
     }
 
     private class CleanUpActionReceiver extends BroadcastReceiver {
@@ -135,7 +131,16 @@ public class WidgetUpdateService extends Service {
             views.setViewVisibility(R.id.clearingView, View.VISIBLE);
             views.setTextViewText(processCount, "进程清理进行中...");
             updateWidget(views);
+            cleanupAction();
         }
+    }
+
+    private void cleanupAction() {
+        ProcessCleanUpHelper.cleanupAllProcess()
+                .flatMap(ignore -> ProcessInfoRepository.getInstance().getAllProcess())
+                .subscribe(ignore -> setupWidget(),
+                        Throwable::printStackTrace,
+                        () -> ToastUtil.showToast("进程清理已完成,系统已达到最佳状态"));
     }
 
     private void updateWidget(RemoteViews views) {
@@ -144,6 +149,7 @@ public class WidgetUpdateService extends Service {
         } catch (RuntimeException e) {
             e.printStackTrace();
             initWidgetView();
+            setupWidget();
             System.gc();
         }
     }

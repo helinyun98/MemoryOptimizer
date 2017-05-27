@@ -6,11 +6,9 @@ import io.reactivex.Observable;
 
 public interface ProcessInfoSource {
 
-    ProcessInfoSource refresh();
+    void refresh();
 
-    Observable<Long> refreshEnd();
-
-    Observable<List<ProcessInfo>> getAllProcess(boolean ignoreCache);
+    Observable<List<ProcessInfo>> getAllProcess();
 
     Observable<Integer> getProcessCount();
 

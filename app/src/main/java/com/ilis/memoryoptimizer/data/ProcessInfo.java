@@ -66,20 +66,20 @@ public final class ProcessInfo {
 
         if (memSize != that.memSize) return false;
         if (userProcess != that.userProcess) return false;
+        if (prepareToClean != that.prepareToClean) return false;
         if (!processName.equals(that.processName)) return false;
-        if (packageName != null ? !packageName.equals(that.packageName) : that.packageName != null)
-            return false;
+        if (!packageName.equals(that.packageName)) return false;
         return appName.equals(that.appName);
-
     }
 
     @Override
     public int hashCode() {
         int result = processName.hashCode();
-        result = 31 * result + (packageName != null ? packageName.hashCode() : 0);
+        result = 31 * result + packageName.hashCode();
         result = 31 * result + appName.hashCode();
         result = 31 * result + (int) (memSize ^ (memSize >>> 32));
         result = 31 * result + (userProcess ? 1 : 0);
+        result = 31 * result + (prepareToClean ? 1 : 0);
         return result;
     }
 }

@@ -69,7 +69,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:backgroundTint="@color/colorPrimary"
-            android:text="清理进程"
+            android:text="清理已选"
             android:textColor="@android:color/white" />
     </LinearLayout>
 

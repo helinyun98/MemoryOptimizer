@@ -5,6 +5,8 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.Debug;
 import android.support.annotation.Nullable;
+import android.text.TextUtils;
+import android.text.format.Formatter;
 
 import com.ilis.memoryoptimizer.MemOptApplication;
 import com.jaredrummler.android.processes.AndroidProcesses;
@@ -23,18 +25,18 @@ public class ProcessInfoRepository implements ProcessInfoSource {
     @Nullable
     private static volatile ProcessInfoRepository INSTANCE = null;
 
-    private static PublishSubject<Long> mRefreshEndNotification = PublishSubject.create();
-    private static PublishSubject<Long> mRefreshStartNotification = PublishSubject.create();
-    private static volatile boolean mRefreshing;
+    private volatile boolean mRefreshing;
+    private PublishSubject<Long> mRefreshStartNotification = PublishSubject.create();
+    private PublishSubject<Long> mRefreshEndNotification = PublishSubject.create();
 
     private List<ProcessInfo> mCachedProcessInfo;
-    private static ActivityManager.MemoryInfo mCachedMemoryInfo;
+    private ActivityManager.MemoryInfo mCachedMemoryInfo;
 
     private ProcessInfoRepository() {
         initRefreshListener();
     }
 
-    public static ProcessInfoSource getInstance() {
+    public static synchronized ProcessInfoSource getInstance() {
         if (INSTANCE == null) {
             INSTANCE = new ProcessInfoRepository();
         }
@@ -42,28 +44,20 @@ public class ProcessInfoRepository implements ProcessInfoSource {
     }
 
     @Override
-    public ProcessInfoSource refresh() {
+    public void refresh() {
         mCachedProcessInfo = null;
         mCachedMemoryInfo = null;
-        mRefreshStartNotification.onNext(System.currentTimeMillis());
-        return this;
     }
 
     @Override
-    public Observable<Long> refreshEnd() {
-        return mRefreshEndNotification
-                .observeOn(AndroidSchedulers.mainThread());
-    }
-
-    @Override
-    public Observable<List<ProcessInfo>> getAllProcess(boolean ignoreCache) {
-        if (!ignoreCache && mCachedProcessInfo != null) {
+    public Observable<List<ProcessInfo>> getAllProcess() {
+        if (mCachedProcessInfo != null) {
             return Observable.just(mCachedProcessInfo);
         }
-        refresh();
+        notifyRefreshStart();
         return refreshEnd()
-                .take(1)
-                .map(endTime -> mCachedProcessInfo);
+                .map(endTime -> mCachedProcessInfo)
+                .observeOn(AndroidSchedulers.mainThread());
     }
 
     @Override
@@ -71,37 +65,43 @@ public class ProcessInfoRepository implements ProcessInfoSource {
         if (mCachedProcessInfo != null) {
             return Observable.just(mCachedProcessInfo.size());
         }
-        refresh();
+        notifyRefreshStart();
         return refreshEnd()
-                .take(1)
-                .map(endTime -> mCachedProcessInfo.size());
+                .map(endTime -> mCachedProcessInfo.size())
+                .observeOn(AndroidSchedulers.mainThread());
     }
 
     private Observable<Long> getTotalMemoryByte() {
         if (mCachedMemoryInfo != null) {
             return Observable.just(mCachedMemoryInfo.totalMem);
         }
-        refresh();
+        notifyRefreshStart();
         return refreshEnd()
-                .take(1)
-                .map(endTime -> mCachedMemoryInfo.totalMem);
+                .map(endTime -> mCachedMemoryInfo.totalMem)
+                .observeOn(AndroidSchedulers.mainThread());
     }
 
     private Observable<Long> getAvailMemoryByte() {
         if (mCachedMemoryInfo != null) {
             return Observable.just(mCachedMemoryInfo.availMem);
         }
-        refresh();
+        notifyRefreshStart();
         return refreshEnd()
-                .take(1)
-                .map(memoryInfo -> mCachedMemoryInfo.availMem);
+                .map(memoryInfo -> mCachedMemoryInfo.availMem)
+                .observeOn(AndroidSchedulers.mainThread());
     }
 
     @Override
     public Observable<String> getSystemMemStatus() {
         return Observable.combineLatest(
                 getAvailMemoryByte(), getTotalMemoryByte(),
-                (availMemory, totalMemory) -> availMemory + "/" + totalMemory);
+                (availMemory, totalMemory) -> {
+                    String formatAvailMem = Formatter.formatFileSize(MemOptApplication.getApplication(), availMemory);
+                    String formatTotalMem = Formatter.formatFileSize(MemOptApplication.getApplication(), totalMemory);
+                    return formatAvailMem + "/" + formatTotalMem;
+                })
+                .subscribeOn(Schedulers.computation())
+                .observeOn(AndroidSchedulers.mainThread());
     }
 
     @Override
@@ -125,12 +125,25 @@ public class ProcessInfoRepository implements ProcessInfoSource {
                 .doOnNext(ignore -> mRefreshing = true)
                 .subscribeOn(Schedulers.single())
                 .subscribe(ignore -> refreshInternal());
+        mRefreshEndNotification
+                .subscribeOn(Schedulers.single())
+                .subscribe(ignore -> mRefreshing = false);
+    }
+
+    private void notifyRefreshStart() {
+        mRefreshStartNotification.onNext(System.currentTimeMillis());
+    }
+
+    private Observable<Long> refreshEnd() {
+        return mRefreshEndNotification
+                .take(1)
+                .observeOn(AndroidSchedulers.mainThread());
     }
 
     private void refreshInternal() {
         Observable.just(AndroidProcesses.getRunningAppProcesses())
-                .flatMap(runningProcessList ->
-                        Observable.fromArray(runningProcessList.toArray(new AndroidAppProcess[0])))
+                .flatMap(runningProcessList -> Observable.fromArray(runningProcessList.toArray()))
+                .cast(AndroidAppProcess.class)
                 .subscribeOn(Schedulers.newThread())
                 .observeOn(Schedulers.computation())
                 .map(process -> {
@@ -139,24 +152,17 @@ public class ProcessInfoRepository implements ProcessInfoSource {
                     info.setPackageName(process.getPackageName());
                     info.setMemSize(getProcessMemoryInfo(process.pid));
                     info.setAppName(getAppName(process.name));
-                    info.setUserProcess(isUserProcess(process.name));
+                    info.setUserProcess(isUserProcess(process.getPackageName()));
                     return info;
                 })
-                .observeOn(Schedulers.io())
-                .toSortedList((process1, process2) -> {
-                    if (process1.isUserProcess() && process2.isUserProcess()) {
-                        return 0;
-                    }
-                    if (process1.isUserProcess()) {
-                        return -1;
-                    }
-                    return 1;
-                })
-                .doOnSuccess(ignore -> cacheMemoryInfo())
-                .retry()
+                .observeOn(Schedulers.newThread())
+                .sorted((process1, process2) -> (int) (process2.getMemSize() - process1.getMemSize()) / (1024))
+                .toList()
                 .observeOn(Schedulers.single())
+                .doOnSuccess(ignore -> cacheMemoryInfo())
+                .doOnError(Throwable::printStackTrace)
+                .retry()
                 .doOnSuccess(processInfoList -> mCachedProcessInfo = processInfoList)
-                .doOnSuccess(ignore -> mRefreshing = false)
                 .doOnSuccess(ignore -> mRefreshEndNotification.onNext(System.currentTimeMillis()))
                 .subscribe();
     }
@@ -171,17 +177,23 @@ public class ProcessInfoRepository implements ProcessInfoSource {
     private String getAppName(String processName) {
         PackageManager packageManager = MemOptApplication.getApplication().getPackageManager();
         try {
-            ApplicationInfo applicationInfo = packageManager.getApplicationInfo(processName, 0);
-            return applicationInfo.loadLabel(packageManager).toString();
+            String packageName = processName.split(":")[0];
+            ApplicationInfo applicationInfo = packageManager.getApplicationInfo(packageName, 0);
+            String appLabel = applicationInfo.loadLabel(packageManager).toString();
+            if (TextUtils.equals(packageName, processName)) {
+                return appLabel;
+            } else {
+                return processName.replaceFirst(packageName, appLabel);
+            }
         } catch (PackageManager.NameNotFoundException e) {
             return processName;
         }
     }
 
-    private boolean isUserProcess(String processName) {
+    private boolean isUserProcess(String packageName) {
         PackageManager packageManager = MemOptApplication.getApplication().getPackageManager();
         try {
-            ApplicationInfo applicationInfo = packageManager.getApplicationInfo(processName, 0);
+            ApplicationInfo applicationInfo = packageManager.getApplicationInfo(packageName, 0);
             return (applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0;
         } catch (PackageManager.NameNotFoundException e) {
             return false;

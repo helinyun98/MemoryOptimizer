@@ -31,7 +31,7 @@ public class ProcessInfoDiff extends DiffUtil.Callback {
     public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
         ProcessInfo oldItem = oldData.get(oldItemPosition);
         ProcessInfo newItem = newData.get(newItemPosition);
-        return oldItem.getPackageName().equals(newItem.getPackageName());
+        return oldItem.getProcessName().equals(newItem.getProcessName());
     }
 
     @Override
