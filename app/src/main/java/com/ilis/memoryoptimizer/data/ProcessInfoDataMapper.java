@@ -26,7 +26,7 @@ public class ProcessInfoDataMapper implements Function<AndroidAppProcess, Proces
     }
 
     @Override
-    public  ProcessInfo apply(@NonNull AndroidAppProcess process) throws Exception {
+    public ProcessInfo apply(@NonNull AndroidAppProcess process) throws Exception {
         ProcessInfo info = new ProcessInfo();
         info.setProcessName(process.name);
         info.setPackageName(process.getPackageName());
