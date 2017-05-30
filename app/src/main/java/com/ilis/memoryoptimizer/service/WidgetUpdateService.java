@@ -87,21 +87,38 @@ public class WidgetUpdateService extends Service {
         }
     }
 
+    private class CleanUpActionReceiver extends BroadcastReceiver {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            views.setViewVisibility(cleanup, View.INVISIBLE);
+            views.setViewVisibility(R.id.clearingView, View.VISIBLE);
+            views.setTextViewText(processCount, "进程清理进行中...");
+            updateWidget(views);
+            cleanupAction();
+        }
+    }
+
+    private void cleanupAction() {
+        ProcessCleanUpHelper.cleanupAllProcess()
+                .subscribe(ignore -> setupWidget(),
+                        Throwable::printStackTrace,
+                        () -> ToastUtil.showToast("进程清理已完成,系统已达到最佳状态"));
+    }
+
     private void initWidgetView() {
         views = new RemoteViews(getPackageName(), R.layout.widget_manager_view);
 
-        PendingIntent actionCleanup = PendingIntent
-                .getBroadcast(this, 0,
-                        new Intent(ACTION_CLEAR),
-                        PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent actionCleanup = PendingIntent.getBroadcast(this, 0,
+                new Intent(ACTION_CLEAR),
+                PendingIntent.FLAG_UPDATE_CURRENT);
         views.setOnClickPendingIntent(cleanup, actionCleanup);
 
         Intent activityIntent = new Intent(this, MainActivity.class);
         activityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        PendingIntent openActivity = PendingIntent
-                .getActivity(this, 0,
-                        activityIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent openActivity = PendingIntent.getActivity(this, 0,
+                activityIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT);
         views.setOnClickPendingIntent(R.id.widgetLayout, openActivity);
     }
 
@@ -121,26 +138,6 @@ public class WidgetUpdateService extends Service {
                     return System.currentTimeMillis();
                 })
                 .subscribe();
-    }
-
-    private class CleanUpActionReceiver extends BroadcastReceiver {
-
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            views.setViewVisibility(cleanup, View.INVISIBLE);
-            views.setViewVisibility(R.id.clearingView, View.VISIBLE);
-            views.setTextViewText(processCount, "进程清理进行中...");
-            updateWidget(views);
-            cleanupAction();
-        }
-    }
-
-    private void cleanupAction() {
-        ProcessCleanUpHelper.cleanupAllProcess()
-                .flatMap(ignore -> ProcessInfoRepository.getInstance().getAllProcess())
-                .subscribe(ignore -> setupWidget(),
-                        Throwable::printStackTrace,
-                        () -> ToastUtil.showToast("进程清理已完成,系统已达到最佳状态"));
     }
 
     private void updateWidget(RemoteViews views) {
