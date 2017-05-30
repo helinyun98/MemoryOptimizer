@@ -1,11 +1,7 @@
 package com.ilis.memoryoptimizer.data;
 
 import android.app.ActivityManager;
-import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageManager;
-import android.os.Debug;
 import android.support.annotation.Nullable;
-import android.text.TextUtils;
 import android.text.format.Formatter;
 
 import com.ilis.memoryoptimizer.MemOptApplication;
@@ -66,8 +62,8 @@ public class ProcessInfoRepository implements ProcessInfoSource {
             return Observable.just(mCachedProcessInfo.size());
         }
         notifyRefreshStart();
-        return refreshEnd()
-                .map(endTime -> mCachedProcessInfo.size())
+        return Observable.just(AndroidProcesses.getRunningAppProcesses())
+                .map(List::size)
                 .observeOn(AndroidSchedulers.mainThread());
     }
 
@@ -75,9 +71,8 @@ public class ProcessInfoRepository implements ProcessInfoSource {
         if (mCachedMemoryInfo != null) {
             return Observable.just(mCachedMemoryInfo.totalMem);
         }
-        notifyRefreshStart();
-        return refreshEnd()
-                .map(endTime -> mCachedMemoryInfo.totalMem)
+        return Observable.just(cacheMemoryInfo())
+                .map(info -> info.totalMem)
                 .observeOn(AndroidSchedulers.mainThread());
     }
 
@@ -85,9 +80,8 @@ public class ProcessInfoRepository implements ProcessInfoSource {
         if (mCachedMemoryInfo != null) {
             return Observable.just(mCachedMemoryInfo.availMem);
         }
-        notifyRefreshStart();
-        return refreshEnd()
-                .map(memoryInfo -> mCachedMemoryInfo.availMem)
+        return Observable.just(cacheMemoryInfo())
+                .map(info -> info.totalMem)
                 .observeOn(AndroidSchedulers.mainThread());
     }
 
@@ -146,16 +140,7 @@ public class ProcessInfoRepository implements ProcessInfoSource {
                 .cast(AndroidAppProcess.class)
                 .subscribeOn(Schedulers.newThread())
                 .observeOn(Schedulers.computation())
-                .map(process -> {
-                    ProcessInfo info = new ProcessInfo();
-                    info.setProcessName(process.name);
-                    info.setPackageName(process.getPackageName());
-                    info.setMemSize(getProcessMemoryInfo(process.pid));
-                    info.setAppName(getAppName(process.name));
-                    info.setUserProcess(isUserProcess(process.getPackageName()));
-                    return info;
-                })
-                .observeOn(Schedulers.newThread())
+                .map(ProcessInfoDataMapper.getInstance())
                 .sorted((process1, process2) -> (int) (process2.getMemSize() - process1.getMemSize()) / (1024))
                 .toList()
                 .observeOn(Schedulers.single())
@@ -167,42 +152,10 @@ public class ProcessInfoRepository implements ProcessInfoSource {
                 .subscribe();
     }
 
-    private long getProcessMemoryInfo(int pid) {
-        ActivityManager activityManager = MemOptApplication.getActivityManager();
-        Debug.MemoryInfo[] memoryInfo = activityManager.getProcessMemoryInfo(new int[]{pid});
-        int privateMemory = memoryInfo[0].getTotalPrivateDirty();
-        return privateMemory * 1024L;
-    }
-
-    private String getAppName(String processName) {
-        PackageManager packageManager = MemOptApplication.getApplication().getPackageManager();
-        try {
-            String packageName = processName.split(":")[0];
-            ApplicationInfo applicationInfo = packageManager.getApplicationInfo(packageName, 0);
-            String appLabel = applicationInfo.loadLabel(packageManager).toString();
-            if (TextUtils.equals(packageName, processName)) {
-                return appLabel;
-            } else {
-                return processName.replaceFirst(packageName, appLabel);
-            }
-        } catch (PackageManager.NameNotFoundException e) {
-            return processName;
-        }
-    }
-
-    private boolean isUserProcess(String packageName) {
-        PackageManager packageManager = MemOptApplication.getApplication().getPackageManager();
-        try {
-            ApplicationInfo applicationInfo = packageManager.getApplicationInfo(packageName, 0);
-            return (applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0;
-        } catch (PackageManager.NameNotFoundException e) {
-            return false;
-        }
-    }
-
-    private void cacheMemoryInfo() {
+    private ActivityManager.MemoryInfo cacheMemoryInfo() {
         ActivityManager.MemoryInfo memoryInfo = new ActivityManager.MemoryInfo();
         MemOptApplication.getActivityManager().getMemoryInfo(memoryInfo);
         mCachedMemoryInfo = memoryInfo;
+        return memoryInfo;
     }
 }
