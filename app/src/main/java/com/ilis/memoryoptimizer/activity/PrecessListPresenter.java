@@ -62,7 +62,6 @@ public class PrecessListPresenter {
                 .subscribeOn(Schedulers.single())
                 .doOnSubscribe(ignore -> view.showReloading())
                 .observeOn(Schedulers.newThread())
-                .cast(ProcessInfo.class)
                 .filter(ProcessInfo::isPrepareToClean)
                 .map(ProcessInfo::getProcessName)
                 .toList()
