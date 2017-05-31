@@ -140,7 +140,7 @@ public class ProcessInfoRepository implements ProcessInfoSource {
                 .cast(AndroidAppProcess.class)
                 .subscribeOn(Schedulers.newThread())
                 .observeOn(Schedulers.computation())
-                .map(ProcessInfoDataMapper.getInstance())
+                .map(ProcessInfoDataMapper::transform)
                 .sorted((process1, process2) -> (int) (process2.getMemSize() - process1.getMemSize()) / (1024))
                 .toList()
                 .observeOn(Schedulers.single())
