@@ -6,7 +6,6 @@ import android.text.format.Formatter;
 
 import com.ilis.memoryoptimizer.MemOptApplication;
 import com.jaredrummler.android.processes.AndroidProcesses;
-import com.jaredrummler.android.processes.models.AndroidAppProcess;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -136,8 +135,7 @@ public class ProcessInfoRepository implements ProcessInfoSource {
 
     private void refreshInternal() {
         Observable.just(AndroidProcesses.getRunningAppProcesses())
-                .flatMap(runningProcessList -> Observable.fromArray(runningProcessList.toArray()))
-                .cast(AndroidAppProcess.class)
+                .flatMap(Observable::fromIterable)
                 .subscribeOn(Schedulers.newThread())
                 .observeOn(Schedulers.computation())
                 .map(ProcessInfoDataMapper.getInstance())

@@ -3,7 +3,6 @@ package com.ilis.memoryoptimizer.util;
 import android.text.TextUtils;
 
 import com.ilis.memoryoptimizer.MemOptApplication;
-import com.ilis.memoryoptimizer.data.ProcessInfo;
 import com.ilis.memoryoptimizer.data.ProcessInfoRepository;
 
 import java.util.List;
@@ -17,10 +16,7 @@ public class ProcessCleanUpHelper {
         return ProcessInfoRepository.getInstance()
                 .getAllProcess()
                 .observeOn(Schedulers.newThread())
-                .flatMap(processInfoList ->
-                        Observable.fromArray(processInfoList.toArray()))
-                .cast(ProcessInfo.class)
-                .doOnError(Throwable::printStackTrace)
+                .flatMap(Observable::fromIterable)
                 .filter(processInfo ->
                         !TextUtils.equals(
                                 MemOptApplication.getCurrentPackageName(),
@@ -37,9 +33,7 @@ public class ProcessCleanUpHelper {
     }
 
     public static Observable<Long> cleanupListProcess(List<String> processNameList) {
-        return Observable.fromArray(processNameList.toArray())
-                .cast(String.class)
-                .doOnError(Throwable::printStackTrace)
+        return Observable.fromIterable(processNameList)
                 .filter(processName ->
                         !TextUtils.equals(
                                 MemOptApplication.getCurrentPackageName(),

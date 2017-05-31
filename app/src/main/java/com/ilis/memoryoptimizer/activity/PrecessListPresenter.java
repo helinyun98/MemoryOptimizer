@@ -58,7 +58,7 @@ public class PrecessListPresenter {
     }
 
     public void cleanupAllSelected() {
-        Observable.fromArray(mData.toArray())
+        Observable.fromIterable(mData)
                 .subscribeOn(Schedulers.single())
                 .doOnSubscribe(ignore -> view.showReloading())
                 .observeOn(Schedulers.newThread())
