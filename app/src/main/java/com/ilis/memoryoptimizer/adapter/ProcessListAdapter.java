@@ -1,14 +1,12 @@
 package com.ilis.memoryoptimizer.adapter;
 
 import android.app.Activity;
-import android.support.v7.util.DiffUtil;
 import android.support.v7.widget.RecyclerView;
 import android.view.ViewGroup;
 
 import com.ilis.memoryoptimizer.activity.MainActivity;
 import com.ilis.memoryoptimizer.data.ProcessInfo;
 import com.ilis.memoryoptimizer.holder.ProcessViewHolder;
-import com.ilis.memoryoptimizer.util.ProcessInfoDiff;
 
 import java.lang.ref.WeakReference;
 import java.util.Collections;
@@ -24,9 +22,8 @@ public class ProcessListAdapter extends RecyclerView.Adapter<ProcessViewHolder> 
     }
 
     public void setData(List<ProcessInfo> data) {
-        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new ProcessInfoDiff(data, this.data));
         this.data = data;
-        diffResult.dispatchUpdatesTo(this);
+        notifyDataSetChanged();
     }
 
     public void notifyListChange() {
