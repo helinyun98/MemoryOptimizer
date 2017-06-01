@@ -4,29 +4,15 @@ import android.app.ActivityManager;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.Debug;
+import android.support.annotation.NonNull;
 import android.text.TextUtils;
 
 import com.ilis.memoryoptimizer.MemOptApplication;
 import com.jaredrummler.android.processes.models.AndroidAppProcess;
 
-import io.reactivex.annotations.NonNull;
-import io.reactivex.annotations.Nullable;
-import io.reactivex.functions.Function;
+public class ProcessInfoDataMapper {
 
-public class ProcessInfoDataMapper implements Function<AndroidAppProcess, ProcessInfo> {
-
-    @Nullable
-    private static volatile ProcessInfoDataMapper INSTANCE = null;
-
-    public static ProcessInfoDataMapper getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new ProcessInfoDataMapper();
-        }
-        return INSTANCE;
-    }
-
-    @Override
-    public ProcessInfo apply(@NonNull AndroidAppProcess process) throws Exception {
+    public static ProcessInfo transform(@NonNull AndroidAppProcess process) {
         ProcessInfo info = new ProcessInfo();
         info.setProcessName(process.name);
         info.setPackageName(process.getPackageName());
@@ -36,14 +22,14 @@ public class ProcessInfoDataMapper implements Function<AndroidAppProcess, Proces
         return info;
     }
 
-    private long getProcessMemoryInfo(int pid) {
+    private static long getProcessMemoryInfo(int pid) {
         ActivityManager activityManager = MemOptApplication.getActivityManager();
         Debug.MemoryInfo[] memoryInfo = activityManager.getProcessMemoryInfo(new int[]{pid});
         int privateMemory = memoryInfo[0].getTotalPrivateDirty();
         return privateMemory * 1024L;
     }
 
-    private String getAppName(String processName) {
+    private static String getAppName(String processName) {
         PackageManager packageManager = MemOptApplication.getApplication().getPackageManager();
         try {
             String packageName = processName.split(":")[0];
@@ -59,7 +45,7 @@ public class ProcessInfoDataMapper implements Function<AndroidAppProcess, Proces
         }
     }
 
-    private boolean isUserProcess(String packageName) {
+    private static boolean isUserProcess(String packageName) {
         PackageManager packageManager = MemOptApplication.getApplication().getPackageManager();
         try {
             ApplicationInfo applicationInfo = packageManager.getApplicationInfo(packageName, 0);
