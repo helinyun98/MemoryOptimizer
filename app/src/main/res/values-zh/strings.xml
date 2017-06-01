@@ -4,4 +4,7 @@
     <string name="process_count">运行中的进程数: %d</string>
     <string name="memory_status">可用/总内存: %s</string>
     <string name="action_cleanup">一键清理</string>
+    <string name="select_all">选择全部</string>
+    <string name="select_others">反向选择</string>
+    <string name="kill_all_select">清理已选</string>
 </resources>

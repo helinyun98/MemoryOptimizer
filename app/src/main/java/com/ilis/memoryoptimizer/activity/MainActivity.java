@@ -60,18 +60,18 @@ public class MainActivity extends RxAppCompatActivity implements ProcessListView
     }
 
     @OnClick({
-            R.id.checkAll,
-            R.id.checkOthers,
-            R.id.killAll})
+            R.id.selectAll,
+            R.id.selectOthers,
+            R.id.killAllSelect})
     public void onClick(View v) {
         switch (v.getId()) {
-            case R.id.checkAll:
+            case R.id.selectAll:
                 presenter.selectAll();
                 break;
-            case R.id.checkOthers:
+            case R.id.selectOthers:
                 presenter.selectOther();
                 break;
-            case R.id.killAll:
+            case R.id.killAllSelect:
                 presenter.cleanupAllSelected();
                 break;
         }

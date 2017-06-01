@@ -50,7 +50,8 @@ public class ProcessInfoRepository implements ProcessInfoSource {
             return Observable.just(mCachedProcessInfo);
         }
         notifyRefreshStart();
-        return refreshEnd()
+        return mRefreshEndNotification
+                .take(1)
                 .map(endTime -> mCachedProcessInfo)
                 .observeOn(AndroidSchedulers.mainThread());
     }
@@ -125,12 +126,6 @@ public class ProcessInfoRepository implements ProcessInfoSource {
 
     private void notifyRefreshStart() {
         mRefreshStartNotification.onNext(System.currentTimeMillis());
-    }
-
-    private Observable<Long> refreshEnd() {
-        return mRefreshEndNotification
-                .take(1)
-                .observeOn(AndroidSchedulers.mainThread());
     }
 
     private void refreshInternal() {

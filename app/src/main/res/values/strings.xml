@@ -3,4 +3,7 @@
     <string name="process_count">ProcessCount:%d</string>
     <string name="memory_status">Avail/TotalMem:%s</string>
     <string name="action_cleanup">CleanUp</string>
+    <string name="select_all">SELECT\nALL</string>
+    <string name="select_others">SELECT\nOTHERS</string>
+    <string name="kill_all_select">KILL\nSELECT</string>
 </resources>
