@@ -80,7 +80,7 @@ public class ProcessInfoRepository implements ProcessInfoSource {
             return Observable.just(mCachedMemoryInfo.availMem);
         }
         return Observable.just(cacheMemoryInfo())
-                .map(info -> info.totalMem)
+                .map(info -> info.availMem)
                 .observeOn(AndroidSchedulers.mainThread());
     }
 
