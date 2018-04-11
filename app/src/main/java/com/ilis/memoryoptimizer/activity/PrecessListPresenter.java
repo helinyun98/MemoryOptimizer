@@ -6,12 +6,16 @@ import com.ilis.memoryoptimizer.MemOptApplication;
 import com.ilis.memoryoptimizer.data.ProcessInfo;
 import com.ilis.memoryoptimizer.data.ProcessInfoSource;
 import com.ilis.memoryoptimizer.util.ProcessCleanUpHelper;
+import com.trello.rxlifecycle2.android.ActivityEvent;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.internal.subscriptions.ArrayCompositeSubscription;
 import io.reactivex.schedulers.Schedulers;
 
 public class PrecessListPresenter {
@@ -19,6 +23,7 @@ public class PrecessListPresenter {
     private ProcessInfoSource infoRepository;
     private ProcessListView view;
     private List<ProcessInfo> mData = new ArrayList<>();
+    private CompositeDisposable disposable = new CompositeDisposable();
 
     public PrecessListPresenter(ProcessInfoSource infoRepository, ProcessListView view) {
         this.infoRepository = infoRepository;
@@ -28,7 +33,7 @@ public class PrecessListPresenter {
     public void refresh() {
         infoRepository.refresh();
         view.showReloading();
-        infoRepository.getAllProcess()
+        disposable.add(infoRepository.getAllProcess()
                 .doOnNext(this::saveProcessData)
                 .doOnNext(ignore -> view.showProcess(mData))
                 .doOnNext(infoList -> view.showProcessCount(infoList.size()))
@@ -36,7 +41,7 @@ public class PrecessListPresenter {
                 .subscribe(
                         view::showMemStatus,
                         Throwable::printStackTrace,
-                        view::hideReloading);
+                        view::hideReloading));
     }
 
     public void selectAll() {
@@ -58,7 +63,7 @@ public class PrecessListPresenter {
     }
 
     public void cleanupAllSelected() {
-        Observable.fromIterable(mData)
+        disposable.add(Observable.fromIterable(mData)
                 .subscribeOn(Schedulers.single())
                 .doOnSubscribe(ignore -> view.showReloading())
                 .observeOn(Schedulers.newThread())
@@ -67,7 +72,7 @@ public class PrecessListPresenter {
                 .toList()
                 .flatMapObservable(ProcessCleanUpHelper::cleanupListProcess)
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(endTime -> refresh());
+                .subscribe(endTime -> refresh()));
     }
 
     public void saveProcessData(List<ProcessInfo> data) {
@@ -76,6 +81,7 @@ public class PrecessListPresenter {
     }
 
     public void destroy() {
+        disposable.clear();
         infoRepository = null;
         view = null;
         mData = null;

@@ -1,6 +1,8 @@
 package com.ilis.memoryoptimizer.activity;
 
 import com.ilis.memoryoptimizer.data.ProcessInfo;
+import com.trello.rxlifecycle2.LifecycleProvider;
+import com.trello.rxlifecycle2.android.ActivityEvent;
 
 import java.util.List;
 

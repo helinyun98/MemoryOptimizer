@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.PublishSubject;
 
@@ -23,6 +24,7 @@ public class ProcessInfoRepository implements ProcessInfoSource {
     private volatile boolean mRefreshing;
     private PublishSubject<Long> mRefreshStartNotification = PublishSubject.create();
     private PublishSubject<Long> mRefreshEndNotification = PublishSubject.create();
+    private CompositeDisposable disposable = new CompositeDisposable();
 
     private List<ProcessInfo> mCachedProcessInfo;
     private ActivityManager.MemoryInfo mCachedMemoryInfo;
@@ -113,15 +115,15 @@ public class ProcessInfoRepository implements ProcessInfoSource {
     }
 
     private void initRefreshListener() {
-        mRefreshStartNotification
+        disposable.add(mRefreshStartNotification
                 .debounce(1, TimeUnit.SECONDS)
                 .filter(ignore -> !mRefreshing)
                 .doOnNext(ignore -> mRefreshing = true)
                 .subscribeOn(Schedulers.single())
-                .subscribe(ignore -> refreshInternal());
-        mRefreshEndNotification
+                .subscribe(ignore -> refreshInternal()));
+        disposable.add(mRefreshEndNotification
                 .subscribeOn(Schedulers.single())
-                .subscribe(ignore -> mRefreshing = false);
+                .subscribe(ignore -> mRefreshing = false));
     }
 
     private void notifyRefreshStart() {

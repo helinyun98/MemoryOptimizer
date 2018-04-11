@@ -12,10 +12,6 @@ android {
         versionName "1.1"
 
         testInstrumentationRunner 'android.support.test.runner.AndroidJUnitRunner'
-
-        jackOptions {
-            enabled true
-        }
     }
 
     compileOptions {
@@ -49,39 +45,39 @@ android {
 }
 
 dependencies {
-    compile fileTree(include: ['*.jar'], dir: 'libs')
     // SupportLibrary
-    compile "com.android.support:design:$rootProject.supportLibraryVersion"
-    compile "com.android.support:support-v4:$rootProject.supportLibraryVersion"
-    compile "com.android.support:recyclerview-v7:$rootProject.supportLibraryVersion"
-    compile "com.android.support:appcompat-v7:$rootProject.supportLibraryVersion"
-    compile "com.android.support:cardview-v7:$rootProject.supportLibraryVersion"
+    implementation "com.android.support:design:$rootProject.supportLibraryVersion"
+    implementation "com.android.support:support-v4:$rootProject.supportLibraryVersion"
+    implementation "com.android.support:recyclerview-v7:$rootProject.supportLibraryVersion"
+    implementation "com.android.support:appcompat-v7:$rootProject.supportLibraryVersion"
+    implementation "com.android.support:cardview-v7:$rootProject.supportLibraryVersion"
     // ButterKnife
-    compile "com.jakewharton:butterknife:$rootProject.butterknifeVersion"
+    implementation "com.jakewharton:butterknife:$rootProject.butterknifeVersion"
     annotationProcessor "com.jakewharton:butterknife-compiler:$rootProject.butterknifeVersion"
     // RxJava
-    compile "io.reactivex.rxjava2:rxjava:$rootProject.rxjavaVersion"
-    compile "io.reactivex.rxjava2:rxandroid:$rootProject.rxandroidVersion"
+    implementation "io.reactivex.rxjava2:rxjava:$rootProject.rxjavaVersion"
+    implementation "io.reactivex.rxjava2:rxandroid:$rootProject.rxandroidVersion"
     // RxLifecycle
-    compile "com.trello.rxlifecycle2:rxlifecycle:$rootProject.rxlifecycleVersion"
-    compile "com.trello.rxlifecycle2:rxlifecycle-android:$rootProject.rxlifecycleVersion"
-    compile "com.trello.rxlifecycle2:rxlifecycle-components:$rootProject.rxlifecycleVersion"
+    implementation "com.trello.rxlifecycle2:rxlifecycle:$rootProject.rxlifecycleVersion"
+    implementation "com.trello.rxlifecycle2:rxlifecycle-android:$rootProject.rxlifecycleVersion"
+    implementation "com.trello.rxlifecycle2:rxlifecycle-components:$rootProject.rxlifecycleVersion"
     // AndroidProcesses
-    compile "com.jaredrummler:android-processes:$rootProject.androidProcessesVersion"
+    implementation "com.jaredrummler:android-processes:$rootProject.androidProcessesVersion"
+    implementation 'com.github.helinyun98:MPermissions:0.1.2'
 
     // Espresso UI Testing
-    androidTestCompile "com.android.support.test.espresso:espresso-core:$rootProject.espressoVersion"
-    androidTestCompile "com.android.support.test.espresso:espresso-contrib:$rootProject.espressoVersion"
-    androidTestCompile "com.android.support.test.espresso:espresso-intents:$rootProject.espressoVersion"
+    androidTestImplementation "com.android.support.test.espresso:espresso-core:$rootProject.espressoVersion"
+    androidTestImplementation "com.android.support.test.espresso:espresso-contrib:$rootProject.espressoVersion"
+    androidTestImplementation "com.android.support.test.espresso:espresso-intents:$rootProject.espressoVersion"
 
     // Dependencies for local unit tests
-    testCompile "junit:junit:$rootProject.ext.junitVersion"
+    testImplementation "junit:junit:$rootProject.ext.junitVersion"
 
     // Resolve conflicts between main and test APK:
-    androidTestCompile "com.android.support:design:$rootProject.supportLibraryVersion"
-    androidTestCompile "com.android.support:support-v4:$rootProject.supportLibraryVersion"
-    androidTestCompile "com.android.support:support-annotations:$rootProject.supportLibraryVersion"
-    androidTestCompile "com.android.support:recyclerview-v7:$rootProject.supportLibraryVersion"
-    androidTestCompile "com.android.support:appcompat-v7:$rootProject.supportLibraryVersion"
-    androidTestCompile "com.google.code.findbugs:jsr305:3.0.1"
+    androidTestImplementation "com.android.support:design:$rootProject.supportLibraryVersion"
+    androidTestImplementation "com.android.support:support-v4:$rootProject.supportLibraryVersion"
+    androidTestImplementation "com.android.support:support-annotations:$rootProject.supportLibraryVersion"
+    androidTestImplementation "com.android.support:recyclerview-v7:$rootProject.supportLibraryVersion"
+    androidTestImplementation "com.android.support:appcompat-v7:$rootProject.supportLibraryVersion"
+    androidTestImplementation "com.google.code.findbugs:jsr305:3.0.1"
 }

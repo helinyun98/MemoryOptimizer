@@ -1,6 +1,7 @@
 package com.ilis.memoryoptimizer.adapter;
 
 import android.app.Activity;
+import android.support.annotation.NonNull;
 import android.support.v7.widget.RecyclerView;
 import android.view.ViewGroup;
 
@@ -39,13 +40,14 @@ public class ProcessListAdapter extends RecyclerView.Adapter<ProcessViewHolder> 
         return activityWeakReference.get();
     }
 
+    @NonNull
     @Override
-    public ProcessViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+    public ProcessViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         return ProcessViewHolder.create(parent);
     }
 
     @Override
-    public void onBindViewHolder(ProcessViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull ProcessViewHolder holder, int position) {
         holder.update(getActivity(), data.get(position));
     }
 }

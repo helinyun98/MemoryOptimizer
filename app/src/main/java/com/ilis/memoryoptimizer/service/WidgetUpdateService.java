@@ -23,6 +23,7 @@ import com.ilis.memoryoptimizer.widget.ProcessManagerWidget;
 import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
+import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
 
 import static com.ilis.memoryoptimizer.R.id.cleanup;
@@ -34,7 +35,7 @@ public class WidgetUpdateService extends Service {
     private CleanUpActionReceiver receiver;
     private ComponentName componentName;
     private RemoteViews views;
-    private Disposable updateDispose;
+    private CompositeDisposable disposable = new CompositeDisposable();
 
     public static final String ACTION_CLEAR = MemOptApplication.getCurrentPackageName() + ".CLEAR_ALL";
 
@@ -55,7 +56,7 @@ public class WidgetUpdateService extends Service {
 
     @Override
     public void onDestroy() {
-        endUpdateAction();
+        disposable.clear();
         unregisterReceiver(receiver);
         super.onDestroy();
     }
@@ -74,17 +75,11 @@ public class WidgetUpdateService extends Service {
     }
 
     private void startUpdateAction() {
-        updateDispose = Observable.interval(3, TimeUnit.MINUTES)
+        disposable.add(Observable.interval(3, TimeUnit.MINUTES)
                 .subscribe(aLong -> {
                     ProcessInfoRepository.getInstance().refresh();
                     setupWidget();
-                });
-    }
-
-    private void endUpdateAction() {
-        if (updateDispose != null && !updateDispose.isDisposed()) {
-            updateDispose.dispose();
-        }
+                }));
     }
 
     private class CleanUpActionReceiver extends BroadcastReceiver {
@@ -100,10 +95,10 @@ public class WidgetUpdateService extends Service {
     }
 
     private void cleanupAction() {
-        ProcessCleanUpHelper.cleanupAllProcess()
+        disposable.add(ProcessCleanUpHelper.cleanupAllProcess()
                 .subscribe(ignore -> setupWidget(),
                         Throwable::printStackTrace,
-                        () -> ToastUtil.showToast("进程清理已完成,系统已达到最佳状态"));
+                        () -> ToastUtil.showToast("进程清理已完成,系统已达到最佳状态")));
     }
 
     private void initWidgetView() {
